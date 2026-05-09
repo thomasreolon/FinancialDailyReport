@@ -3,15 +3,18 @@ from datetime import datetime, timedelta, timezone
 from src.api.youtube import download_yt_transcript, list_channel_videos
 from src.scrapers.base import ScrapingNode
 
-CHANNEL_URL = "https://www.youtube.com/@fxevolutionvideo"
+from src.utils.global_logger import log, log_error
+
+CHANNEL_URL = "https://www.youtube.com/{channel}"
 
 
-class YTFxEvolutionScraper(ScrapingNode):
-    def __init__(self, hours: int = 24):
+class YTScraper(ScrapingNode):
+    def __init__(self, hours: int = 24, channel:str='@fxevolutionvideo'):
         self.hours = hours
-
+        self.channel = channel
+        
     def scrape(self) -> dict | None:
-        videos = list_channel_videos(CHANNEL_URL, max_videos=5)
+        videos = list_channel_videos(CHANNEL_URL.format(channel=self.channel), max_videos=5)
         if not videos:
             return None
 
