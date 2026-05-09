@@ -1,0 +1,7 @@
+services:
+  run-tests:
+    build:
+      context: .
+      target: test
+    env_file: .env
+    profiles: ["test"]
