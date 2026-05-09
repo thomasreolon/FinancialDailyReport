@@ -1,8 +1,8 @@
 # Test 1
-from src.scrapers.yt_fxevolution import YTFxEvolutionScraper
+from src.scrapers.yt_scraper import YTScraper
 
 def test_fxevolution_scraper():
-    result = YTFxEvolutionScraper(hours=72).scrape()
+    result = YTScraper(hours=72, channel='@fxevolutionvideo').scrape()
     assert result is None or (
         isinstance(result, dict)
         and "url" in result
