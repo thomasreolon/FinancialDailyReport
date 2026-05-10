@@ -12,3 +12,6 @@ build/
 # Pytest
 .pytest_cache/
 
+# Results
+output*
+experiments

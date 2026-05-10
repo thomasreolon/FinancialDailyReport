@@ -316,12 +316,12 @@ def _fetch_playwright_human(url: str, timeout: int) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Tier 5: scraper.do — managed residential-proxy + JS rendering API
+# Tier 5: scrape.do — managed residential-proxy + JS rendering API
 # Last resort when all local tiers are blocked. Consumes API credits.
-# Docs: https://scraper.do/docs  |  env var: SCRAPEDO_API_KEY
+# Docs: https://scrape.do/docs  |  env var: SCRAPEDO_API_KEY
 # ---------------------------------------------------------------------------
 
-_SCRAPEDO_ENDPOINT = "https://api.scraper.do/"
+_SCRAPEDO_ENDPOINT = "https://api.scrape.do/"
 
 
 def _fetch_scrapedo(url: str, timeout: int) -> str:
@@ -335,7 +335,7 @@ def _fetch_scrapedo(url: str, timeout: int) -> str:
     # Try JS-rendered first (more capable, costs more credits), then plain.
     for render in (True, False):
         params = {
-            "api_key": api_key,
+            "token": api_key,
             "url": url,
             "render": "true" if render else "false",
             "country": "us",
@@ -343,13 +343,13 @@ def _fetch_scrapedo(url: str, timeout: int) -> str:
         resp = _requests.get(
             _SCRAPEDO_ENDPOINT,
             params=params,
-            timeout=timeout + 30,  # scraper.do has its own internal timeout
+            timeout=timeout + 30,  # scrape.do has its own internal timeout
         )
         if resp.status_code == 200:
             return resp.text
         if resp.status_code in (401, 403):
-            raise RuntimeError(f"scraper.do auth error: HTTP {resp.status_code}")
-        logger.debug("scraper.do render=%s → HTTP %s", render, resp.status_code)
+            raise RuntimeError(f"scrape.do auth error: HTTP {resp.status_code}")
+        logger.debug("scrape.do render=%s → HTTP %s", render, resp.status_code)
 
     resp.raise_for_status()
     return resp.text  # unreachable

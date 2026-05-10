@@ -6,15 +6,18 @@ from pathlib import Path
 
 
 def list_channel_videos(channel_url: str, max_videos: int = 5) -> list[dict]:
+    # Use /videos tab so yt-dlp fetches regular uploads (not shorts/live tabs).
+    # --flat-playlist omits upload_date, so we skip it and fetch full metadata.
+    url = channel_url if "/videos" in channel_url else channel_url.rstrip("/") + "/videos"
     cmd = [
         "yt-dlp",
-        "--flat-playlist",
         "--playlist-end", str(max_videos),
+        "--skip-download",
         "--print", "%(.{id,title,upload_date,webpage_url})j",
-        channel_url,
+        url,
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
             return []
         videos = []
