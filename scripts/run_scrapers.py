@@ -59,7 +59,6 @@ def run_scrapers(scrapers: list[tuple[str, Callable]]) -> None:
 # Add new scrapers here: ("output_filename", lambda: scrape_function(...))
 
 if __name__ == "__main__":
-    from src.scrapers.investing_screener import scrape_mid_cap_losers as _old_mid_cap
     from src.scrapers.investing_stock import scrape_investing_stock
     from src.scrapers.yt_scraper import YTScraper
     from src.scrapers.screener.investing import scrape_mid_cap_losers

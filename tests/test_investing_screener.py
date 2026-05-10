@@ -1,11 +1,11 @@
 """
-Integration test for src/scrapers/investing_screener.py.
+Integration test for src/scrapers/screener/investing.py.
 """
 import json
 
 import pytest
 
-from src.scrapers.investing_screener import ScreenerResult, ScreenerRow, scrape_mid_cap_losers
+from src.scrapers.screener.investing import ScreenerResult, ScreenerRow, scrape_mid_cap_losers
 
 
 class TestScreener:
