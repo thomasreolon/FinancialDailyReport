@@ -1,5 +1,5 @@
 """
-Integration tests for src/scrapers/investing_stock.py.
+Integration tests for src/scrapers/stock/investing.py.
 
 Test 1 — breadth : scrape 5 different companies (different exchanges, currencies,
          sectors) and verify the core fields parse without errors.
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from src.scrapers.investing_stock import StockPage, scrape_investing_stock
+from src.scrapers.stock.investing import StockPage, scrape_investing_stock
 
 # ── test targets ─────────────────────────────────────────────────────────────
 

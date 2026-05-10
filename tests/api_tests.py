@@ -1,5 +1,5 @@
 # Test 1
-from src.scrapers.yt_scraper import YTScraper
+from src.scrapers.news.yt_scraper import YTScraper
 
 def test_fxevolution_scraper():
     result = YTScraper(hours=72, channel='@fxevolutionvideo').scrape()

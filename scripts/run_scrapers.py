@@ -1,5 +1,5 @@
 """
-Run all registered scrapers and save results to output_screeners/.
+Run all registered scrapers and save results to output/screener/.
 
 To add a new scraper, append an entry to SCRAPERS at the bottom of this file:
 
@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 from pydantic import BaseModel
 
-OUTPUT_DIR = ROOT / "output_screeners"
+OUTPUT_DIR = ROOT / "output" / "screener"
 
 
 def _serialize(result: BaseModel | list) -> str:
@@ -59,8 +59,6 @@ def run_scrapers(scrapers: list[tuple[str, Callable]]) -> None:
 # Add new scrapers here: ("output_filename", lambda: scrape_function(...))
 
 if __name__ == "__main__":
-    from src.scrapers.investing_stock import scrape_investing_stock
-    from src.scrapers.yt_scraper import YTScraper
     from src.scrapers.screener.investing import scrape_mid_cap_losers
     from src.scrapers.screener.yahoo_trending import scrape_yahoo_trending
     from src.scrapers.screener.portfoliopilot import scrape_portfoliopilot
@@ -68,8 +66,11 @@ if __name__ == "__main__":
     from src.scrapers.news.ft_world import scrape_ft_world
     from src.scrapers.news.stonex import scrape_stonex
     from src.scrapers.news.tikr_blog import scrape_tikr_blog
+    from src.scrapers.news.yt_scraper import YTScraper
     from src.scrapers.analyst.anachart import scrape_anachart
     from src.scrapers.analyst.marketbeat import scrape_marketbeat_forecast
+    from src.scrapers.stock.investing import scrape_investing_stock
+    from src.scrapers.stock.yahoo import scrape_yahoo_profile
 
     SCRAPERS: list[tuple[str, Callable]] = [
         # ── screeners ──────────────────────────────────────────────────────────
@@ -81,12 +82,13 @@ if __name__ == "__main__":
         ("news_ft_world",              lambda: scrape_ft_world()),
         ("news_stonex",                lambda: scrape_stonex()),
         ("news_tikr_blog",             lambda: scrape_tikr_blog()),
+        ("news_yt_feer",               lambda: YTScraper(hours=24, channel="@Feer").scrape()),
         # ── analyst ────────────────────────────────────────────────────────────
         ("analyst_anachart_aapl",      lambda: scrape_anachart("aapl")),
         ("analyst_marketbeat_aapl",    lambda: scrape_marketbeat_forecast("AAPL", "NASDAQ")),
-        # ── legacy ─────────────────────────────────────────────────────────────
-        ("investing_stock_aapl",       lambda: scrape_investing_stock("https://www.investing.com/equities/apple-computer-inc")),
-        ("yt_scraper",                 lambda: YTScraper(hours=24, channel="@Feer").scrape()),
+        # ── stock ──────────────────────────────────────────────────────────────
+        ("stock_investing_aapl",       lambda: scrape_investing_stock("https://www.investing.com/equities/apple-computer-inc")),
+        ("stock_yahoo_aapl",           lambda: scrape_yahoo_profile("AAPL")),
     ]
 
     print("Running scrapers...")
