@@ -71,6 +71,8 @@ if __name__ == "__main__":
     from src.scrapers.analyst.marketbeat import scrape_marketbeat_forecast
     from src.scrapers.stock.investing import scrape_investing_stock
     from src.scrapers.stock.yahoo import scrape_yahoo_profile
+    from src.scrapers.technical.market_overview import scrape_market_overview
+    from src.scrapers.technical.sentiment_outlook import scrape_sentiment_outlook
 
     SCRAPERS: list[tuple[str, Callable]] = [
         # ── screeners ──────────────────────────────────────────────────────────
@@ -89,6 +91,9 @@ if __name__ == "__main__":
         # ── stock ──────────────────────────────────────────────────────────────
         ("stock_investing_aapl",       lambda: scrape_investing_stock("https://www.investing.com/equities/apple-computer-inc")),
         ("stock_yahoo_aapl",           lambda: scrape_yahoo_profile("AAPL")),
+        # ── technical ──────────────────────────────────────────────────────────
+        ("technical_market_overview",  lambda: scrape_market_overview()),
+        ("technical_sentiment_outlook", lambda: scrape_sentiment_outlook()),
     ]
 
     print("Running scrapers...")

@@ -1,9 +1,14 @@
 """
-Run the screened-stocks pipeline and save the result to output/pipeline/screened_stocks.json.
+Run all pipelines and save results to output/pipeline/.
+
+  screened_stocks.json  — enriched company profiles from all screeners
+  news.json             — market news aggregation with Gemini summaries
 
 Usage:
-    python scripts/run_pipeline.py          # all tickers (slow — one Playwright session per ticker)
-    python scripts/run_pipeline.py --limit 10
+    python scripts/run_pipeline.py                   # all pipelines
+    python scripts/run_pipeline.py --only news
+    python scripts/run_pipeline.py --only screened_stocks
+    python scripts/run_pipeline.py --limit 10        # cap screened_stocks tickers
 """
 
 from __future__ import annotations
@@ -15,28 +20,43 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from src.pipelines.screened_stocks import run_pipeline
-
 OUTPUT_DIR = ROOT / "output" / "pipeline"
+
+
+def run_screened_stocks(limit: int | None) -> None:
+    from src.pipelines.screened_stocks import run_pipeline
+    print("\n── screened_stocks ──────────────────────────────────────")
+    result = run_pipeline()
+    out = OUTPUT_DIR / "screened_stocks.json"
+    out.write_text(result.model_dump_json(indent=2))
+    print(f"  {result.total} companies → {out.relative_to(ROOT)}")
+    if result.failed_tickers:
+        print(f"  {len(result.failed_tickers)} failed: {result.failed_tickers}")
+
+
+def run_news() -> None:
+    from src.pipelines.news import run_pipeline
+    print("\n── news ─────────────────────────────────────────────────")
+    result = run_pipeline()
+    out = OUTPUT_DIR / "news.json"
+    out.write_text(result.model_dump_json(indent=2))
+    print(f"  saved → {out.relative_to(ROOT)}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--only", choices=["screened_stocks", "news"],
+                        help="Run only one pipeline (default: both)")
     parser.add_argument("--limit", type=int, default=None,
-                        help="Max number of tickers to process (default: all)")
+                        help="Cap tickers for screened_stocks (default: all)")
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("Running screened-stocks pipeline...")
-    result = run_pipeline()
-
-    out_path = OUTPUT_DIR / "screened_stocks.json"
-    out_path.write_text(result.model_dump_json(indent=2))
-
-    print(f"\n  {result.total} companies saved → {out_path.relative_to(ROOT)}")
-    if result.failed_tickers:
-        print(f"  {len(result.failed_tickers)} failed: {result.failed_tickers}")
+    if args.only == "news" or args.only is None:
+        run_news()
+    if args.only == "screened_stocks" or args.only is None:
+        run_screened_stocks(args.limit)
 
 
 if __name__ == "__main__":
