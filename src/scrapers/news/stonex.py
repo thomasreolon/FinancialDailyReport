@@ -7,7 +7,7 @@ Falls back to RSS feed if all page-fetch tiers fail.
 
 import re
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from bs4 import BeautifulSoup
 from curl_cffi import requests as cf_requests
@@ -46,7 +46,7 @@ class StoneXResult(BaseModel):
 class StoneXNode(ScrapingNode):
     def __init__(self, date: str | None = None):
         if date is None:
-            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            date = datetime.now(timezone.utc).strftime("%Y-%m-%d") - timedelta(days=1)
         self.date = date
 
     def scrape(self) -> StoneXResult | None:
@@ -55,7 +55,7 @@ class StoneXNode(ScrapingNode):
 
 def scrape_stonex(date: str | None = None, timeout: int = 45) -> StoneXResult:
     if date is None:
-        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
     url = f"{_BASE}/en/insights/financial-markets-morning-commentary-{date}/"
 
     html = None

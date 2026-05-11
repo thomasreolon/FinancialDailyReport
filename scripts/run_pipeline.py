@@ -4,12 +4,14 @@ Run all pipelines and save results to output/pipeline/.
   screened_stocks.json    — enriched company profiles from all screeners
   news.json               — market news aggregation with Gemini summaries
   macro_indicators.json   — global macro / economic indicators snapshot
+  daily_report.json       — assembled daily report (runs all upstream pipelines)
 
 Usage:
     python scripts/run_pipeline.py                        # all pipelines
     python scripts/run_pipeline.py --only news
     python scripts/run_pipeline.py --only screened_stocks
     python scripts/run_pipeline.py --only macro_indicators
+    python scripts/run_pipeline.py --only build_report
     python scripts/run_pipeline.py --limit 10             # cap screened_stocks tickers
 """
 
@@ -55,15 +57,33 @@ def run_macro_indicators() -> None:
     print(f"  saved → {out.relative_to(ROOT)}  (Gemini filled {filled} fields)")
 
 
+def run_build_report(force: bool = False) -> None:
+    from src.pipelines.build_report import run_pipeline
+    print("\n── build_report ─────────────────────────────────────────")
+    result = run_pipeline(force=force)
+    out = OUTPUT_DIR / "daily_report.json"
+    out.write_text(result.model_dump_json(indent=2))
+    print(f"  saved → {out.relative_to(ROOT)}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--only", choices=["screened_stocks", "news", "macro_indicators"],
-                        help="Run only one pipeline (default: all)")
+    parser.add_argument(
+        "--only",
+        choices=["screened_stocks", "news", "macro_indicators", "build_report"],
+        help="Run only one pipeline (default: all)",
+    )
     parser.add_argument("--limit", type=int, default=None,
                         help="Cap tickers for screened_stocks (default: all)")
+    parser.add_argument("--force", action="store_true",
+                        help="Ignore today's checkpoints and re-run all stages (build_report only)")
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    if args.only == "build_report":
+        run_build_report(force=args.force)
+        return
 
     if args.only == "news" or args.only is None:
         run_news()

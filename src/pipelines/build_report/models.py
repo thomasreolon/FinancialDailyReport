@@ -1,0 +1,58 @@
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+
+class ChartPoint(BaseModel):
+    period: str
+    net_revenue: float | None
+    ebitda: float | None        # operating_income as proxy
+    earnings: float | None      # net_income
+    debt_assets_ratio: float | None
+
+
+class CompanyReport(BaseModel):
+    ticker: str
+    name: str | None
+    price: float | None
+    price_now: float | None
+    text: str
+    market_cap: float | None
+    pe: float | None
+    pb: float | None
+    description: str | None
+    chart: list[ChartPoint] = Field(default_factory=list)
+
+
+class IndicatorReport(BaseModel):
+    name: str
+    value: str
+    color: Literal["green", "grey", "red"]
+    help: str
+
+
+class VariationPeriods(BaseModel):
+    one_day: float | None
+    five_days: float | None
+    one_month: float | None
+    one_year: float | None
+    three_years: float | None
+
+
+class AssetVariation(BaseModel):
+    symbol: str
+    name: str
+    periods: VariationPeriods
+
+
+class DailyReport(BaseModel):
+    title: str
+    article: str
+    companies: list[CompanyReport] = Field(default_factory=list)
+    indicators: list[IndicatorReport] = Field(default_factory=list)
+    title2: str
+    article2: str
+    variations: list[AssetVariation] = Field(default_factory=list)
+    generated_at: str
