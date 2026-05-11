@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Market Ledger — {{ date_str }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Courier+Prime&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --nav-bg: #2b2826;
+            --nav-text: #e8e4d9;
+            --nav-muted: #8c8279;
+            --nav-border: rgba(232,228,217,0.15);
+            --nav-accent: #c0706a;
+            --nav-hover: rgba(232,228,217,0.08);
+            --nav-height: 44px;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            background: #111010;
+        }
+
+        nav {
+            flex-shrink: 0;
+            height: var(--nav-height);
+            background: var(--nav-bg);
+            border-bottom: 1px solid var(--nav-border);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0 1.25rem;
+            font-family: 'Courier Prime', monospace;
+        }
+
+        .nav-brand {
+            font-family: 'Cinzel', serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--nav-text);
+            white-space: nowrap;
+            user-select: none;
+        }
+
+        .nav-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--nav-border);
+            flex-shrink: 0;
+        }
+
+        .nav-spacer { flex: 1; }
+
+        .nav-label {
+            font-size: 0.7rem;
+            color: var(--nav-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            white-space: nowrap;
+        }
+
+        #date-select {
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.8rem;
+            background: rgba(255,255,255,0.07);
+            color: var(--nav-text);
+            border: 1px solid var(--nav-border);
+            border-radius: 2px;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #date-select:hover, #date-select:focus {
+            border-color: rgba(232,228,217,0.4);
+        }
+        #date-select option {
+            background: #2b2826;
+            color: var(--nav-text);
+        }
+
+        #theme-btn {
+            font-size: 1rem;
+            line-height: 1;
+            background: none;
+            border: 1px solid var(--nav-border);
+            border-radius: 2px;
+            color: var(--nav-text);
+            padding: 0.2rem 0.5rem;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            flex-shrink: 0;
+        }
+        #theme-btn:hover {
+            background: var(--nav-hover);
+            border-color: rgba(232,228,217,0.4);
+        }
+
+        #report-frame {
+            flex: 1;
+            width: 100%;
+            border: none;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+<nav>
+    <span class="nav-brand">The Market Ledger</span>
+    <div class="nav-divider"></div>
+    <span class="nav-label">Edition</span>
+    <select id="date-select" onchange="navigate(this.value)">
+        {% for d in dates %}
+        <option value="{{ d }}"{% if d == date_str %} selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+    </select>
+    <div class="nav-spacer"></div>
+    <button id="theme-btn" onclick="toggleTheme()" title="Toggle light / dark mode">☀</button>
+</nav>
+
+<iframe id="report-frame" src="/raw/{{ date_str }}" title="Market Ledger Report"></iframe>
+
+<script>
+    const THEME_KEY = 'market-ledger-theme';
+    let currentTheme = localStorage.getItem(THEME_KEY) || 'light';
+
+    function applyTheme(theme, broadcast) {
+        currentTheme = theme;
+        localStorage.setItem(THEME_KEY, theme);
+        document.getElementById('theme-btn').textContent = theme === 'dark' ? '☾' : '☀';
+        if (broadcast !== false) {
+            sendThemeToFrame(theme);
+        }
+    }
+
+    function sendThemeToFrame(theme) {
+        const frame = document.getElementById('report-frame');
+        try {
+            frame.contentWindow.postMessage({ marketLedgerTheme: theme }, '*');
+        } catch (_) {}
+    }
+
+    function toggleTheme() {
+        applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    }
+
+    function navigate(dateStr) {
+        window.location.href = '/' + dateStr;
+    }
+
+    // Apply immediately so the button icon is correct before iframe loads
+    applyTheme(currentTheme, false);
+
+    // Re-send theme once iframe finishes loading
+    document.getElementById('report-frame').addEventListener('load', () => {
+        sendThemeToFrame(currentTheme);
+    });
+</script>
+</body>
+</html>

@@ -6,59 +6,62 @@ from src.pipelines.macro_indicators import MacroIndicatorsResult
 from src.pipelines.news import NewsPipelineResult
 
 
-_ARTICLE1_PROMPT = """You are a senior financial journalist writing a daily market briefing.
+_ARTICLE1_PROMPT = """Sei un giornalista finanziario senior che scrive il briefing di mercato giornaliero.
 
-Synthesize the news sources below into a compelling market briefing for today.
+Sintetizza le fonti di notizie seguenti in un briefing di mercato avvincente per oggi.
+Scrivi interamente in italiano. Mantieni i marcatori di formato TITLE: e ARTICLE: in inglese.
 
-=== FT World Headlines ===
+=== Titoli FT World ===
 {ft_headlines}
 
-=== StoneX Daily Analysis ===
+=== Analisi Giornaliera StoneX ===
 {stonex_article}
 
-=== TIKR Blog Posts ===
+=== Post del Blog TIKR ===
 {tikr_posts}
 
-=== General Market Events (web search) ===
+=== Eventi di Mercato Generali (ricerca web) ===
 {gemini_news}
 
-=== FX/Macro Video Summary ===
+=== Sintesi Video FX/Macro ===
 {fx_summary}
 
-Write:
-1. A punchy, specific TITLE (max 10 words) capturing the most important market theme.
-2. An ARTICLE (200-300 words) that:
-   - Opens with the most market-moving event or theme
-   - Covers 2-3 key developments across equities, rates, and macro
-   - Includes specific data points, index levels, or percentage moves where available
-   - Closes with what to watch next
+Scrivi:
+1. Un TITOLO incisivo e specifico (max 10 parole) che cattura il tema di mercato più importante.
+2. Un ARTICOLO (200-300 parole) che:
+   - Apre con l'evento o tema più rilevante per i mercati
+   - Copre 2-3 sviluppi chiave tra azionario, tassi e macro
+   - Include dati specifici, livelli degli indici o movimenti percentuali dove disponibili
+   - Chiude con cosa osservare nelle prossime ore
 
-Format:
-TITLE: <title>
-ARTICLE: <article>
+Formato:
+TITLE: <titolo>
+ARTICLE: <articolo>
 """
 
-_ARTICLE2_PROMPT = """You are a macro strategist writing the 'big picture' section of a daily market report.
+_ARTICLE2_PROMPT = """Sei un macro strategist che scrive la sezione 'quadro generale' di un report di mercato giornaliero.
 
-=== Current Macro Indicators ===
+Scrivi interamente in italiano. Mantieni i marcatori di formato TITLE: e ARTICLE: in inglese.
+
+=== Indicatori Macro Attuali ===
 {indicators_summary}
 
-=== Today's Top Selected Stocks ===
+=== Titoli Azionari Selezionati Oggi ===
 {companies_summary}
 
-Write:
-1. A TITLE (max 10 words) summarizing the current macro regime.
-2. An ARTICLE (250-350 words) that:
-   - Opens with a bird's-eye view of where markets stand in the economic cycle
-   - Describes the 2-3 dominant macro forces currently driving markets
-   - Gives 2-3 specific causal warnings using the format:
-     "If [event] happens [timeframe], it would be [bullish/bearish] because [mechanism]."
-   - Notes any cross-asset divergences or signals worth monitoring
-   - Is grounded entirely in the indicator data provided above
+Scrivi:
+1. Un TITOLO (max 10 parole) che riassume il regime macro attuale.
+2. Un ARTICOLO (250-350 parole) che:
+   - Apre con una visione d'insieme di dove si trovano i mercati nel ciclo economico
+   - Descrive le 2-3 forze macro dominanti che guidano attualmente i mercati
+   - Fornisce 2-3 avvertimenti causali specifici usando il formato:
+     "Se [evento] accade [arco temporale], sarebbe [rialzista/ribassista] perché [meccanismo]."
+   - Segnala eventuali divergenze o segnali cross-asset da monitorare
+   - È fondato esclusivamente sui dati degli indicatori forniti sopra
 
-Format:
-TITLE: <title>
-ARTICLE: <article>
+Formato:
+TITLE: <titolo>
+ARTICLE: <articolo>
 """
 
 
@@ -78,7 +81,7 @@ def _parse_response(text: str) -> tuple[str, str]:
             article_lines.append(line)
     if not title:
         lines = [l.strip() for l in text.split("\n") if l.strip()]
-        title = lines[0] if lines else "Daily Market Briefing"
+        title = lines[0] if lines else "Aggiornamento Mercati"
         article_lines = lines[1:]
     return title.strip(), "\n".join(article_lines).strip()
 
@@ -113,7 +116,7 @@ def build_title_article(news: NewsPipelineResult) -> tuple[str, str]:
     try:
         text = generate(prompt)
     except Exception as exc:
-        return "Daily Market Briefing", f"[LLM generation failed: {exc}]"
+        return "Aggiornamento Mercati", f"[Generazione LLM fallita: {exc}]"
 
     return _parse_response(text)
 
@@ -139,6 +142,6 @@ def build_title2_article2(
     try:
         text = generate(prompt)
     except Exception as exc:
-        return "Macro Outlook", f"[LLM generation failed: {exc}]"
+        return "Prospettiva Macro", f"[Generazione LLM fallita: {exc}]"
 
     return _parse_response(text)

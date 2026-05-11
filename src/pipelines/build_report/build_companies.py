@@ -5,28 +5,29 @@ from src.pipelines.screened_stocks import ScreenedCompany
 from src.pipelines.build_report.models import ChartPoint, CompanyReport
 
 
-_COMPANY_TEXT_PROMPT = """You are a financial analyst writing a brief stock report.
+_COMPANY_TEXT_PROMPT = """Sei un analista finanziario che scrive una breve scheda su un titolo azionario.
+Scrivi interamente in italiano.
 
-Company: {name} ({ticker})
-Sector: {sector}
-Industry: {industry}
-Current Price: {price}
-Market Cap: {market_cap}
-P/E Ratio: {pe}
-P/B Ratio: {pb}
-Revenue (TTM): {revenue}
-Net Income (TTM): {net_income}
-Analyst Consensus: {analyst_consensus}
-Analyst Avg Price Target: {price_target}
-Description: {description}
+Azienda: {name} ({ticker})
+Settore: {sector}
+Industria: {industry}
+Prezzo Attuale: {price}
+Capitalizzazione di Mercato: {market_cap}
+Rapporto P/E: {pe}
+Rapporto P/B: {pb}
+Ricavi (TTM): {revenue}
+Utile Netto (TTM): {net_income}
+Consensus Analisti: {analyst_consensus}
+Prezzo Obiettivo Medio Analisti: {price_target}
+Descrizione: {description}
 
-Write a concise 3-4 sentence investment commentary covering:
-- What the company does and its market position
-- Key financial health signals (growth, profitability, valuation)
-- Why it stands out today (screening signal, momentum, or fundamental quality)
-- One risk to watch
+Scrivi un commento di investimento conciso in 3-4 frasi che copra:
+- Cosa fa l'azienda e la sua posizione di mercato
+- Segnali chiave di salute finanziaria (crescita, redditività, valutazione)
+- Perché si distingue oggi (segnale di screening, momentum o qualità fondamentale)
+- Un rischio da monitorare
 
-Be specific and data-driven. No generic filler sentences.
+Sii specifico e basato sui dati. Nessuna frase generica.
 """
 
 
