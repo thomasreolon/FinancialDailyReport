@@ -11,12 +11,10 @@ import json
 import time
 from datetime import date, timedelta
 from functools import lru_cache
-from pathlib import Path
 
 _BUCKET = "the-mind-financial-reports"
-_PREFIX = "reports"
+_PREFIX = "raw"
 _TTL = 300.0  # seconds
-_LOCAL_FALLBACK = Path(__file__).parent.parent / "output" / "pipeline" / "daily_report.json"
 
 # TTL cache: blob_name → (monotonic_ts, data | None)
 _ttl_cache: dict[str, tuple[float, dict | None]] = {}
@@ -50,7 +48,7 @@ def _load_permanent(blob_name: str) -> dict | None:
 
 
 def _blob_for(date_str: str) -> str:
-    return f"{_PREFIX}/daily_report_{date_str}.json"
+    return f"{_PREFIX}/{date_str}.json"
 
 
 def load_report(date_str: str) -> dict | None:
@@ -87,12 +85,7 @@ def find_latest() -> dict | None:
 
 
 def load_latest() -> dict | None:
-    data = find_latest()
-    if data:
-        return data
-    if _LOCAL_FALLBACK.exists():
-        return json.loads(_LOCAL_FALLBACK.read_text())
-    return None
+    return find_latest()
 
 
 # TTL cache for list_dates
@@ -106,12 +99,12 @@ def list_dates() -> list[str]:
         return _dates_cache[1]
     try:
         from google.cloud import storage  # type: ignore
-        blobs = storage.Client().bucket(_BUCKET).list_blobs(prefix=f"{_PREFIX}/daily_report_")
+        blobs = storage.Client().bucket(_BUCKET).list_blobs(prefix=f"{_PREFIX}/")
         dates: list[str] = []
         for b in blobs:
             fname = b.name.split("/")[-1]
-            if fname.startswith("daily_report_") and fname.endswith(".json"):
-                dates.append(fname[len("daily_report_"):-len(".json")])
+            if fname.endswith(".json") and fname != "latest.json":
+                dates.append(fname[:-len(".json")])
         dates.sort(reverse=True)
         _dates_cache = (now, dates)
         return dates

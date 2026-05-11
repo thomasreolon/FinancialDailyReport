@@ -58,11 +58,19 @@ def run_macro_indicators() -> None:
 
 
 def run_build_report(force: bool = False) -> None:
+    import json
     from src.pipelines.build_report import run_pipeline
     print("\n── build_report ─────────────────────────────────────────")
-    result = run_pipeline(force=force)
+    bundle = run_pipeline(force=force)
+    combined = {
+        "report": bundle.report.model_dump(),
+        "macro_indicators": bundle.macro.model_dump() if hasattr(bundle.macro, "model_dump") else bundle.macro,
+        "screened_stocks": bundle.screened.model_dump() if hasattr(bundle.screened, "model_dump") else bundle.screened,
+        "news": bundle.news.model_dump() if hasattr(bundle.news, "model_dump") else bundle.news,
+        "market_overview": bundle.overview.model_dump() if hasattr(bundle.overview, "model_dump") else bundle.overview,
+    }
     out = OUTPUT_DIR / "daily_report.json"
-    out.write_text(result.model_dump_json(indent=2))
+    out.write_text(json.dumps(combined, indent=2, default=str))
     print(f"  saved → {out.relative_to(ROOT)}")
 
 

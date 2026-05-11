@@ -16,6 +16,7 @@ Usage:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from src.pipelines.build_report import _checkpoints as ckpt
@@ -25,6 +26,15 @@ from src.pipelines.build_report.build_indicators import build_indicators
 from src.pipelines.build_report.build_variations import build_variations
 from src.pipelines.build_report.models import DailyReport
 from src.pipelines.build_report.select_companies import select_top_companies
+
+
+@dataclass
+class PipelineBundle:
+    report: DailyReport
+    news: object        # NewsPipelineResult
+    macro: object       # MacroIndicatorsResult
+    screened: object    # PipelineResult (screened_stocks)
+    overview: object    # MarketOverviewResult
 
 
 def _cached(name: str, fn, force: bool, verbose: bool) -> object:
@@ -37,7 +47,7 @@ def _cached(name: str, fn, force: bool, verbose: bool) -> object:
     return result
 
 
-def run_pipeline(verbose: bool = True, force: bool = False) -> DailyReport:
+def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
     """
     Args:
         verbose: print progress to stdout.
@@ -86,7 +96,7 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> DailyReport:
     _log("Building article 2 (macro view)...")
     title2, article2 = build_title2_article2(indicators, companies, macro)
 
-    return DailyReport(
+    report = DailyReport(
         title=title,
         article=article,
         companies=companies,
@@ -95,4 +105,11 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> DailyReport:
         article2=article2,
         variations=variations,
         generated_at=datetime.now(timezone.utc).isoformat(),
+    )
+    return PipelineBundle(
+        report=report,
+        news=news,
+        macro=macro,
+        screened=screened,
+        overview=overview,
     )

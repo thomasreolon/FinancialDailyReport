@@ -134,28 +134,23 @@ async def index() -> RedirectResponse:
     dates = gcs.list_dates()
     if dates:
         return RedirectResponse(url=f"/{dates[0]}", status_code=302)
-    report = gcs.load_latest()
-    if report and (gen := report.get("generated_at")):
+    data = gcs.load_latest()
+    if data and (gen := data.get("report", {}).get("generated_at")):
         return RedirectResponse(url=f"/{gen[:10]}", status_code=302)
     raise HTTPException(status_code=404, detail="No report available yet. Run src/run_report.py first.")
 
 
 @app.get("/raw/{date_str}", response_class=HTMLResponse)
 async def raw_report(request: Request, date_str: str) -> HTMLResponse:
-    report = gcs.load_report(date_str)
-    if not report and gcs._LOCAL_FALLBACK.exists():
-        import json
-        report = json.loads(gcs._LOCAL_FALLBACK.read_text())
-    if not report:
+    data = gcs.load_report(date_str)
+    if not data or "report" not in data:
         raise HTTPException(status_code=404, detail=f"No report found for {date_str}.")
-    return templates.TemplateResponse(request, "report.html", {"report": report})
+    return templates.TemplateResponse(request, "report.html", {"report": data["report"]})
 
 
 @app.get("/{date_str}", response_class=HTMLResponse)
 async def shell(request: Request, date_str: str) -> HTMLResponse:
     dates = gcs.list_dates()
-    if not dates and gcs._LOCAL_FALLBACK.exists():
-        dates = [date_str]
     return templates.TemplateResponse(request, "shell.html", {
         "date_str": date_str,
         "dates": dates or [date_str],
