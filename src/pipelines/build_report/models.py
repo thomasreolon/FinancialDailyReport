@@ -28,7 +28,9 @@ class CompanyReport(BaseModel):
 
 class IndicatorReport(BaseModel):
     name: str
-    value: str
+    value: float | None        # normalized numeric value for ML/analysis
+    unit: str = ""             # display hint: "pct", "pct+", "T$", "B$", "x", ""
+    label: str | None = None   # secondary string (rating, quarter, label)
     color: Literal["green", "grey", "red"]
     help: str
 

@@ -10,9 +10,11 @@ Color = Literal["green", "grey", "red"]
 
 class _Cfg(NamedTuple):
     name: str
-    value_fn: Callable[[MacroIndicatorsResult], str]
+    value_fn: Callable[[MacroIndicatorsResult], float | None]
     color_fn: Callable[[MacroIndicatorsResult], Color]
     help: str
+    unit: str = ""
+    label_fn: Callable[[MacroIndicatorsResult], str | None] = lambda r: None
 
 
 def _clamp(val: float | None, low: float, high: float, invert: bool = False) -> Color:
@@ -26,7 +28,7 @@ def _clamp(val: float | None, low: float, high: float, invert: bool = False) -> 
 _CONFIGS: list[_Cfg] = [
     _Cfg(
         name="VIX (Indice di Volatilità)",
-        value_fn=lambda r: f"{r.vix:.1f}" if r.vix is not None else "N/A",
+        value_fn=lambda r: r.vix,
         color_fn=lambda r: _clamp(r.vix, 15.0, 25.0),
         help=(
             "Il VIX del CBOE misura la volatilità implicita a 30 giorni delle opzioni sull'S&P 500 — "
@@ -38,7 +40,7 @@ _CONFIGS: list[_Cfg] = [
     ),
     _Cfg(
         name="Indice Paura & Avidità",
-        value_fn=lambda r: f"{r.fear_greed:.0f} – {r.fear_greed_rating}" if r.fear_greed is not None else "N/A",
+        value_fn=lambda r: r.fear_greed,
         color_fn=lambda r: (
             "green" if r.fear_greed is not None and r.fear_greed > 60 else
             "red"   if r.fear_greed is not None and r.fear_greed < 40 else
@@ -51,10 +53,11 @@ _CONFIGS: list[_Cfg] = [
             "Le letture estreme sono contrarian: l'avidità estrema può precedere correzioni; "
             "la paura estrema segna spesso i minimi."
         ),
+        label_fn=lambda r: r.fear_greed_rating,
     ),
     _Cfg(
         name="Curva dei Rendimenti (10A–3M)",
-        value_fn=lambda r: f"{r.yield_curve_10y3m:+.2f}%" if r.yield_curve_10y3m is not None else "N/A",
+        value_fn=lambda r: r.yield_curve_10y3m,
         color_fn=lambda r: (
             "green" if r.yield_curve_10y3m is not None and r.yield_curve_10y3m > 0.5 else
             "red"   if r.yield_curve_10y3m is not None and r.yield_curve_10y3m < -0.5 else
@@ -66,10 +69,11 @@ _CONFIGS: list[_Cfg] = [
             "tipicamente con 6–18 mesi di anticipo. "
             "Sopra +0,5% = sana. Sotto -0,5% = inversione = segnale di recessione (rosso)."
         ),
+        unit="pct+",
     ),
     _Cfg(
         name="Tasso Fed Funds",
-        value_fn=lambda r: f"{r.fed_funds_rate:.2f}%" if r.fed_funds_rate is not None else "N/A",
+        value_fn=lambda r: r.fed_funds_rate,
         color_fn=lambda r: (
             "green" if r.fed_funds_rate is not None and r.fed_funds_rate < 3.0 else
             "red"   if r.fed_funds_rate is not None and r.fed_funds_rate > 5.0 else
@@ -81,21 +85,23 @@ _CONFIGS: list[_Cfg] = [
             "Tassi alti (>5%) = politica restrittiva, comprime i multipli delle growth stock e aumenta il costo del debito. "
             "La direzione del tasso conta quanto il livello: un ciclo di tagli è rialzista, un ciclo di rialzi è ribassista."
         ),
+        unit="pct",
     ),
     _Cfg(
-        name="Probabilità Decisione Fed",
-        value_fn=lambda r: r.fed_june_probability or "N/A",
+        name="Probabilità Taglio Fed",
+        value_fn=lambda r: r.fed_cut_probability_pct,
         color_fn=lambda r: "grey",
         help=(
-            "Probabilità CME FedWatch per la prossima riunione FOMC — derivata dai futures sui fed funds. "
-            "Mostra le probabilità implicite del mercato per una conferma, un taglio o un rialzo dei tassi. "
+            "Probabilità CME FedWatch di un taglio di 25bp alla prossima riunione FOMC — "
+            "derivata dai futures sui fed funds. "
             "Alta probabilità di taglio è rialzista per azioni e obbligazioni; "
             "alta probabilità di rialzo è ribassista, specialmente per le growth stock e le obbligazioni a lunga duration."
         ),
+        unit="pct",
     ),
     _Cfg(
         name="Bilancio della Fed",
-        value_fn=lambda r: f"${r.fed_balance_sheet_trn:.2f}T" if r.fed_balance_sheet_trn is not None else "N/A",
+        value_fn=lambda r: r.fed_balance_sheet_trn,
         color_fn=lambda r: (
             "green" if r.fed_balance_sheet_trn is not None and r.fed_balance_sheet_trn > 8.0 else
             "red"   if r.fed_balance_sheet_trn is not None and r.fed_balance_sheet_trn < 7.0 else
@@ -108,13 +114,11 @@ _CONFIGS: list[_Cfg] = [
             "Una dimensione >$8T riflette un'accomodazione storicamente elevata; "
             "una contrazione rapida è un vento contrario alla liquidità."
         ),
+        unit="T$",
     ),
     _Cfg(
         name="M2 USA (YoY%)",
-        value_fn=lambda r: (
-            f"${r.m2_us_trn:.1f}T ({r.m2_us_yoy_pct:+.1f}% YoY)"
-            if r.m2_us_trn is not None and r.m2_us_yoy_pct is not None else "N/A"
-        ),
+        value_fn=lambda r: r.m2_us_yoy_pct,
         color_fn=lambda r: (
             "green" if r.m2_us_yoy_pct is not None and 2.0 <= r.m2_us_yoy_pct <= 8.0 else
             "red"   if r.m2_us_yoy_pct is not None and r.m2_us_yoy_pct < 0 else
@@ -126,10 +130,12 @@ _CONFIGS: list[_Cfg] = [
             "Crescita negativa (contrazione monetaria) è storicamente rara e precede stress economico. "
             "Crescita moderata (2–8%) supporta l'attività normale."
         ),
+        unit="pct+",
+        label_fn=lambda r: f"${r.m2_us_trn:.1f}T" if r.m2_us_trn is not None else None,
     ),
     _Cfg(
         name="M2 Globale",
-        value_fn=lambda r: f"${r.global_m2_trn:.0f}T" if r.global_m2_trn is not None else "N/A",
+        value_fn=lambda r: r.global_m2_trn,
         color_fn=lambda r: "grey",
         help=(
             "Aggregato della massa monetaria delle principali economie in dollari equivalenti. "
@@ -138,10 +144,11 @@ _CONFIGS: list[_Cfg] = [
             "Quando contraggono insieme (come nel 2022), gli asset rischiosi tendono a calare in parallelo. "
             "Le variazioni dell'M2 globale tendono a precedere i mercati azionari di circa 3–6 mesi."
         ),
+        unit="T$",
     ),
     _Cfg(
         name="RRP Notturno Fed",
-        value_fn=lambda r: f"${r.rrp_facility_bln:.0f}B" if r.rrp_facility_bln is not None else "N/A",
+        value_fn=lambda r: r.rrp_facility_bln,
         color_fn=lambda r: (
             "green" if r.rrp_facility_bln is not None and r.rrp_facility_bln < 100 else
             "red"   if r.rrp_facility_bln is not None and r.rrp_facility_bln > 500 else
@@ -154,10 +161,11 @@ _CONFIGS: list[_Cfg] = [
             "Un RRP in calo è rialzista: quella liquidità si sposta in T-bill e altri asset. "
             "Vicino a zero significa che la liquidità in eccesso post-pandemia è completamente assorbita."
         ),
+        unit="B$",
     ),
     _Cfg(
         name="Debito su Margine FINRA",
-        value_fn=lambda r: f"${r.finra_margin_debt_bln:.0f}B" if r.finra_margin_debt_bln is not None else "N/A",
+        value_fn=lambda r: r.finra_margin_debt_bln,
         color_fn=lambda r: "grey",
         help=(
             "Capitale totale preso in prestito dagli investitori per acquistare titoli su margine. "
@@ -165,13 +173,11 @@ _CONFIGS: list[_Cfg] = [
             "Cali bruschi innescano liquidazioni forzate (margin call), amplificando i sell-off di mercato. "
             "Rapide aumenti vicino ai massimi storici sono un classico segnale di fine ciclo."
         ),
+        unit="B$",
     ),
     _Cfg(
         name="Rapporto SPY/M2",
-        value_fn=lambda r: (
-            f"{r.spy_m2_ratio:.1f} ({r.spy_m2_ratio_label})"
-            if r.spy_m2_ratio is not None and r.spy_m2_ratio_label else "N/A"
-        ),
+        value_fn=lambda r: r.spy_m2_ratio,
         color_fn=lambda r: (
             "green" if r.spy_m2_ratio_label == "compressed" else
             "red"   if r.spy_m2_ratio_label == "elevated"   else
@@ -183,10 +189,11 @@ _CONFIGS: list[_Cfg] = [
             "Elevata (>250): le azioni sono care rispetto alla liquidità, aumentando il rischio di correzione. "
             "Distingue i movimenti di mercato guidati da crescita reale da quelli guidati puramente dall'espansione monetaria."
         ),
+        label_fn=lambda r: r.spy_m2_ratio_label,
     ),
     _Cfg(
         name="Breakeven Inflazione 5A",
-        value_fn=lambda r: f"{r.breakeven_5y:.2f}%" if r.breakeven_5y is not None else "N/A",
+        value_fn=lambda r: r.breakeven_5y,
         color_fn=lambda r: (
             "green" if r.breakeven_5y is not None and 1.5 <= r.breakeven_5y <= 2.5 else
             "red"   if r.breakeven_5y is not None and r.breakeven_5y > 3.0 else
@@ -200,10 +207,11 @@ _CONFIGS: list[_Cfg] = [
             "aumentando il rischio di ulteriori rialzi o tassi 'più alti più a lungo'. "
             "Segnale a breve termine; più volatile del breakeven a 10 anni."
         ),
+        unit="pct",
     ),
     _Cfg(
         name="Breakeven Inflazione 10A",
-        value_fn=lambda r: f"{r.breakeven_10y:.2f}%" if r.breakeven_10y is not None else "N/A",
+        value_fn=lambda r: r.breakeven_10y,
         color_fn=lambda r: (
             "green" if r.breakeven_10y is not None and 1.5 <= r.breakeven_10y <= 2.5 else
             "red"   if r.breakeven_10y is not None and r.breakeven_10y > 3.0 else
@@ -216,10 +224,11 @@ _CONFIGS: list[_Cfg] = [
             "il che è ribassista per le growth stock e le obbligazioni a lunga duration. "
             "Driver primario del premio per il rischio azionario."
         ),
+        unit="pct",
     ),
     _Cfg(
         name="Inflazione Core PCE (YoY)",
-        value_fn=lambda r: f"{r.core_pce_yoy:.2f}%" if r.core_pce_yoy is not None else "N/A",
+        value_fn=lambda r: r.core_pce_yoy,
         color_fn=lambda r: (
             "green" if r.core_pce_yoy is not None and r.core_pce_yoy <= 2.5 else
             "red"   if r.core_pce_yoy is not None and r.core_pce_yoy > 3.5 else
@@ -234,10 +243,11 @@ _CONFIGS: list[_Cfg] = [
             "Un PCE in calo è la condizione chiave per i tagli dei tassi — "
             "il dato mensile più capace di muovere i mercati."
         ),
+        unit="pct",
     ),
     _Cfg(
         name="PMI Manifatturiero ISM",
-        value_fn=lambda r: f"{r.ism_manufacturing_pmi:.1f}" if r.ism_manufacturing_pmi is not None else "N/A",
+        value_fn=lambda r: r.ism_manufacturing_pmi,
         color_fn=lambda r: (
             "green" if r.ism_manufacturing_pmi is not None and r.ism_manufacturing_pmi > 50 else
             "red"   if r.ism_manufacturing_pmi is not None and r.ism_manufacturing_pmi < 48 else
@@ -253,7 +263,7 @@ _CONFIGS: list[_Cfg] = [
     ),
     _Cfg(
         name="Rapporto CAPE Shiller",
-        value_fn=lambda r: f"{r.shiller_cape:.1f}" if r.shiller_cape is not None else "N/A",
+        value_fn=lambda r: r.shiller_cape,
         color_fn=lambda r: (
             "green" if r.shiller_cape is not None and r.shiller_cape < 25 else
             "red"   if r.shiller_cape is not None and r.shiller_cape > 35 else
@@ -269,7 +279,7 @@ _CONFIGS: list[_Cfg] = [
     ),
     _Cfg(
         name="Indicatore di Buffett",
-        value_fn=lambda r: f"{r.buffett_indicator_pct:.0f}%" if r.buffett_indicator_pct is not None else "N/A",
+        value_fn=lambda r: r.buffett_indicator_pct,
         color_fn=lambda r: (
             "green" if r.buffett_indicator_pct is not None and r.buffett_indicator_pct < 100 else
             "red"   if r.buffett_indicator_pct is not None and r.buffett_indicator_pct > 150 else
@@ -282,10 +292,11 @@ _CONFIGS: list[_Cfg] = [
             "La globalizzazione delle aziende USA e i tassi bassi dal 2008 hanno strutturalmente elevato questo rapporto; "
             "va usato come confronto storico relativo piuttosto che come segnale assoluto."
         ),
+        unit="pct",
     ),
     _Cfg(
         name="Premio per il Rischio Azionario",
-        value_fn=lambda r: f"{r.equity_risk_premium:+.2f}%" if r.equity_risk_premium is not None else "N/A",
+        value_fn=lambda r: r.equity_risk_premium,
         color_fn=lambda r: (
             "green" if r.equity_risk_premium is not None and r.equity_risk_premium > 3.0 else
             "red"   if r.equity_risk_premium is not None and r.equity_risk_premium < 1.0 else
@@ -299,13 +310,11 @@ _CONFIGS: list[_Cfg] = [
             "rendendo meno convincente l'allocazione azionaria (rosso). "
             "Un ERP negativo significa che i bond rendono più delle azioni su base corretta per il rischio."
         ),
+        unit="pct+",
     ),
     _Cfg(
         name="Indicatore Anticipatore OCSE (USA)",
-        value_fn=lambda r: (
-            f"{r.lei_conference_board:.2f} ({r.lei_mom_pct:+.2f}% MoM)"
-            if r.lei_conference_board is not None and r.lei_mom_pct is not None else "N/A"
-        ),
+        value_fn=lambda r: r.lei_conference_board,
         color_fn=lambda r: (
             "green" if r.lei_conference_board is not None and r.lei_conference_board > 100.0 and (r.lei_mom_pct or 0) > 0 else
             "red"   if r.lei_conference_board is not None and r.lei_conference_board < 99.0  and (r.lei_mom_pct or 0) < 0 else
@@ -318,10 +327,11 @@ _CONFIGS: list[_Cfg] = [
             "Sotto 100 e in calo = possibile rallentamento in arrivo, anticipa il PIL di 6–9 mesi. "
             "Cali mensili consecutivi sotto 99 sono un forte segnale anticipatore di recessione."
         ),
+        label_fn=lambda r: f"{r.lei_mom_pct:+.2f}% MoM" if r.lei_mom_pct is not None else None,
     ),
     _Cfg(
         name="Rapporto Rame/Oro",
-        value_fn=lambda r: f"{r.copper_gold_ratio:.5f}" if r.copper_gold_ratio is not None else "N/A",
+        value_fn=lambda r: r.copper_gold_ratio,
         color_fn=lambda r: (
             "green" if r.copper_gold_ratio is not None and r.copper_gold_ratio > 0.00040 else
             "red"   if r.copper_gold_ratio is not None and r.copper_gold_ratio < 0.00020 else
@@ -338,7 +348,7 @@ _CONFIGS: list[_Cfg] = [
     ),
     _Cfg(
         name="P/E Forward S&P 500",
-        value_fn=lambda r: f"{r.sp500_fwd_pe:.1f}x" if r.sp500_fwd_pe is not None else "N/A",
+        value_fn=lambda r: r.sp500_fwd_pe,
         color_fn=lambda r: (
             "green" if r.sp500_fwd_pe is not None and r.sp500_fwd_pe < 18 else
             "red"   if r.sp500_fwd_pe is not None and r.sp500_fwd_pe > 22 else
@@ -351,13 +361,11 @@ _CONFIGS: list[_Cfg] = [
             "o a tassi in rialzo (che riducono il valore attuale degli utili futuri). "
             "Il multiplo di valutazione azionaria più monitorato al mondo."
         ),
+        unit="x",
     ),
     _Cfg(
         name="Crescita EPS S&P 500 (YoY)",
-        value_fn=lambda r: (
-            f"{r.sp500_eps_growth_q:+.1f}% ({r.sp500_eps_growth_quarter})"
-            if r.sp500_eps_growth_q is not None and r.sp500_eps_growth_quarter else "N/A"
-        ),
+        value_fn=lambda r: r.sp500_eps_growth_q,
         color_fn=lambda r: (
             "green" if r.sp500_eps_growth_q is not None and r.sp500_eps_growth_q > 10 else
             "red"   if r.sp500_eps_growth_q is not None and r.sp500_eps_growth_q < 0  else
@@ -370,10 +378,12 @@ _CONFIGS: list[_Cfg] = [
             "Negativa = contrazione degli utili, spesso innesca compressione dei multipli "
             "e debolezza di mercato (rosso). 0–10% = crescita moderata e sostenibile."
         ),
+        unit="pct+",
+        label_fn=lambda r: r.sp500_eps_growth_quarter,
     ),
     _Cfg(
         name="Crescita EPS EuroStoxx 50",
-        value_fn=lambda r: f"{r.eurostoxx50_fwd_eps_growth:+.1f}%" if r.eurostoxx50_fwd_eps_growth is not None else "N/A",
+        value_fn=lambda r: r.eurostoxx50_fwd_eps_growth,
         color_fn=lambda r: (
             "green" if r.eurostoxx50_fwd_eps_growth is not None and r.eurostoxx50_fwd_eps_growth > 8 else
             "red"   if r.eurostoxx50_fwd_eps_growth is not None and r.eurostoxx50_fwd_eps_growth < 0 else
@@ -387,10 +397,11 @@ _CONFIGS: list[_Cfg] = [
             "Stime negative riflettono venti contrari macro: prezzi dell'energia, "
             "rischio geopolitico o rafforzamento dell'euro."
         ),
+        unit="pct+",
     ),
     _Cfg(
         name="Settori Leader (Crescita EPS)",
-        value_fn=lambda r: r.leading_sectors or "N/A",
+        value_fn=lambda r: None,
         color_fn=lambda r: "grey",
         help=(
             "Settori dell'S&P 500 con la più alta crescita EPS anno su anno nel trimestre di reporting corrente. "
@@ -398,6 +409,7 @@ _CONFIGS: list[_Cfg] = [
             "Settori difensivi in testa (Sanità, Utility, Beni di Prima Necessità) = segnale di fine ciclo. "
             "Tecnologia e Finanza in testa insieme = risk-on, regime di crescita da inizio a metà ciclo."
         ),
+        label_fn=lambda r: r.leading_sectors,
     ),
 ]
 
@@ -408,8 +420,13 @@ def build_indicators(result: MacroIndicatorsResult) -> list[IndicatorReport]:
         try:
             value = cfg.value_fn(result)
             color = cfg.color_fn(result)
+            label = cfg.label_fn(result)
         except Exception:
-            value = "N/A"
+            value = None
             color = "grey"
-        reports.append(IndicatorReport(name=cfg.name, value=value, color=color, help=cfg.help))
+            label = None
+        reports.append(IndicatorReport(
+            name=cfg.name, value=value, unit=cfg.unit,
+            label=label, color=color, help=cfg.help,
+        ))
     return reports

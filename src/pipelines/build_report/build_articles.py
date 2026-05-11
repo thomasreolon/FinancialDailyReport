@@ -126,8 +126,24 @@ def build_title2_article2(
     companies: list[CompanyReport],
     macro: MacroIndicatorsResult,
 ) -> tuple[str, str]:
+    def _fmt(i: IndicatorReport) -> str:
+        if i.value is None:
+            return i.label or "N/A"
+        parts = [f"{i.value:g}"]
+        if i.unit in ("pct", "pct+"):
+            parts = [f"{i.value:+.2f}%" if "+" in i.unit else f"{i.value:.2f}%"]
+        elif i.unit == "T$":
+            parts = [f"${i.value:.2f}T"]
+        elif i.unit == "B$":
+            parts = [f"${i.value:.0f}B"]
+        elif i.unit == "x":
+            parts = [f"{i.value:.1f}x"]
+        if i.label:
+            parts.append(f"({i.label})")
+        return " ".join(parts)
+
     indicators_summary = "\n".join(
-        f"- {i.name}: {i.value} [{i.color.upper()}]" for i in indicators
+        f"- {i.name}: {_fmt(i)} [{i.color.upper()}]" for i in indicators
     )
     companies_summary = "\n".join(
         f"- {c.ticker} ({c.name}): price ${c.price}, P/E {c.pe}, market cap {c.market_cap}"

@@ -26,7 +26,7 @@ class MacroIndicatorsResult(BaseModel):
     # Fed & Rates
     yield_curve_10y3m: float | None = None
     fed_funds_rate: float | None = None
-    fed_june_probability: str | None = None   # e.g. "hold 82%, cut 25bp 18%"
+    fed_cut_probability_pct: float | None = None   # probability of 25bp cut at next FOMC (%)
 
     # Liquidity & Leverage
     fed_balance_sheet_trn: float | None = None
@@ -130,7 +130,7 @@ def _collect_scraped() -> MacroIndicatorsResult:
         r.fed_funds_rate = ff.rate_pct
         r.data_dates["fed_funds_rate"] = ff.date
 
-    _safe_run("fed_june_probability", scrape_fed_june_probability)  # always None, Gemini fills
+    _safe_run("fed_june_probability", scrape_fed_june_probability)  # always None; Gemini fills fed_cut_probability_pct
 
     fbs = _safe_run("fed_balance_sheet", scrape_fed_balance_sheet)
     if fbs:
@@ -240,11 +240,11 @@ def _collect_scraped() -> MacroIndicatorsResult:
 # Typed schema for all fields that scrapers cannot reliably fetch.
 # All fields are Optional so the model can return null for anything uncertain.
 class _GeminiFill(BaseModel):
-    fed_june_probability: str | None = Field(
+    fed_cut_probability_pct: float | None = Field(
         None,
         description=(
-            "CME FedWatch probability for the next FOMC meeting. "
-            "Format: 'hold X%, cut 25bp Y%' including the meeting date."
+            "CME FedWatch probability of a 25bp rate cut at the next FOMC meeting, "
+            "as a plain number (e.g., 6.2 for 6.2%)."
         ),
     )
     global_m2_trn: float | None = Field(

@@ -87,6 +87,32 @@ def _fmt_ratio(v: float | None) -> str:
     return f"{v * 100:.1f}%"
 
 
+def _fmt_ind(v: float | None, unit: str = "") -> str:
+    """Format a normalized indicator value for display."""
+    if v is None:
+        return "—"
+    if unit == "T$":
+        return f"${v:.2f}T"
+    if unit == "B$":
+        return f"${v:.0f}B"
+    if unit == "pct+":
+        return f"{v:+.2f}%"
+    if unit == "pct":
+        return f"{v:.2f}%"
+    if unit == "x":
+        return f"{v:.1f}x"
+    # dimensionless: auto precision
+    if abs(v) >= 1000:
+        return f"{v:,.1f}"
+    if abs(v) >= 100:
+        return f"{v:.1f}"
+    if abs(v) >= 1:
+        return f"{v:.2f}"
+    if abs(v) >= 0.001:
+        return f"{v:.5f}"
+    return f"{v:.6f}"
+
+
 def _pct_class(v: float | None) -> str:
     if v is None:
         return ""
@@ -98,6 +124,7 @@ templates.env.filters["fmt_price"] = _fmt_price
 templates.env.filters["fmt_large"] = _fmt_large
 templates.env.filters["fmt_date"] = _fmt_date
 templates.env.filters["fmt_ratio"] = _fmt_ratio
+templates.env.filters["fmt_ind"] = _fmt_ind
 templates.env.filters["pct_class"] = _pct_class
 
 

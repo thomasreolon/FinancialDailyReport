@@ -66,7 +66,7 @@
         }
 
         .journal-page {
-            max-width: 1200px;
+            max-width: 1440px;
             margin: 0 auto;
             background-color: var(--paper);
             background-image:
@@ -129,20 +129,16 @@
             line-height: 1;
         }
 
-        .subtitle {
-            font-family: var(--font-body);
-            font-style: italic;
-            font-size: 1.2rem;
-            color: var(--ink-light);
-        }
-
-        /* ── Main grid ─────────────────────────────────────────────────────── */
-        .main-grid {
+        /* ── Page layout: content + sticky sidebar ─────────────────────────── */
+        .page-layout {
             display: grid;
             grid-template-columns: 1fr 320px;
             gap: 3rem;
-            margin-bottom: 3rem;
             align-items: start;
+        }
+
+        .content-col > article {
+            margin-bottom: 3rem;
         }
 
         h2.section-title {
@@ -187,7 +183,8 @@
             border: var(--border-thin);
             padding: 1.25rem 1.5rem;
             box-shadow: 2px 2px 0 rgba(43,40,38,0.1);
-            position: relative;
+            position: sticky;
+            top: 2rem;
         }
 
         [data-theme="dark"] .sidebar {
@@ -207,9 +204,7 @@
         }
 
         .sidebar-scroll {
-            max-height: 560px;
-            overflow-y: auto;
-            scrollbar-width: thin;
+            /* no height cap — all indicators visible */
         }
 
         .ledger-item {
@@ -268,8 +263,8 @@
         }
 
         .index-card {
-            min-width: 300px;
-            max-width: 300px;
+            min-width: 250px;
+            max-width: 250px;
             background: var(--paper-light);
             border: 1px solid var(--paper-dark);
             border-top: 4px solid var(--ink-accent);
@@ -307,31 +302,31 @@
         .price-row {
             display: flex;
             justify-content: space-between;
-            align-items: baseline;
+            align-items: center;
             background: var(--paper-light);
         }
 
+        .price-stack { display: flex; flex-direction: column; gap: 0.1rem; }
+
         .price-current {
             font-family: var(--font-mono);
-            font-size: 1.45rem;
+            font-size: 1.3rem;
             font-weight: 700;
         }
 
-        .price-meta {
+        .price-ref {
             font-family: var(--font-mono);
-            font-size: 0.75rem;
-            color: var(--ink-light);
+            font-size: 0.68rem;
+            color: var(--ink-faded);
         }
 
-        /* Notes: readable italic serif instead of unreadable cursive */
-        .notes-area {
-            background: transparent;
-            color: var(--ink-navy);
-            font-family: var(--font-body);
-            font-style: italic;
-            font-size: 0.95rem;
-            line-height: 1.65;
-            margin-top: 0.25rem;
+        .price-delta { font-weight: 700; }
+
+        .price-meta {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--ink-light);
+            text-align: right;
         }
 
         .details-btn {
@@ -384,14 +379,6 @@
         }
 
         .analyst-note p:first-of-type { color: var(--ink-main); }
-
-        .signature {
-            font-family: var(--font-script);
-            font-size: 2.5rem; color: var(--ink-navy);
-            text-align: right; margin-top: 1rem;
-            transform: rotate(-3deg);
-            display: inline-block; float: right;
-        }
 
         /* ── Performance table ─────────────────────────────────────────────── */
         .performance-section {
@@ -498,7 +485,8 @@
 
         /* ── Responsive ────────────────────────────────────────────────────── */
         @media (max-width: 900px) {
-            .main-grid { grid-template-columns: 1fr; }
+            .page-layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; }
             .article-columns { column-count: 1; }
             .journal-page { padding: 2rem; }
             h1.masthead { font-size: 2.5rem; }
@@ -516,20 +504,87 @@
             <span>Daily Edition</span>
         </div>
         <h1 class="masthead">The Market Ledger</h1>
-        <div class="subtitle">An Ink &amp; Pen Journal of Intelligence &amp; Trade</div>
     </header>
 
-    <!-- MAIN GRID: article + indicators sidebar -->
-    <div class="main-grid">
-        <article>
-            <h2 class="section-title">{{ report.title }}</h2>
-            <div class="article-columns">
-                {% for para in report.article.split('\n\n') if para.strip() %}
+    <!-- PAGE LAYOUT: content column + sticky sidebar -->
+    <div class="page-layout">
+
+        <div class="content-col">
+
+            <!-- ARTICLE -->
+            <article>
+                <h2 class="section-title">{{ report.title }}</h2>
+                <div class="article-columns">
+                    {% for para in report.article.split('\n\n') if para.strip() %}
+                    <p>{{ para.strip() }}</p>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <!-- COMPANIES SCROLLER -->
+            <div class="scroller-wrapper">
+                <h2 class="section-title">Selected Companies</h2>
+                <div class="scroller-container">
+                    {% for c in report.companies %}
+                    <div class="index-card">
+                        <div class="index-header">
+                            <span class="ticker">{{ c.ticker }}</span>
+                            <span class="ticker-badge">{{ c.market_cap | fmt_large }}</span>
+                        </div>
+                        <div class="price-row">
+                            <div class="price-stack">
+                                <span class="price-current" id="live-{{ c.ticker }}">$—</span>
+                                <span class="price-ref">rep. ${{ c.price | fmt_price }} <span class="price-delta" id="delta-{{ c.ticker }}"></span></span>
+                            </div>
+                            <span class="price-meta">P/E {{ "%.1f"|format(c.pe) if c.pe else "N/A" }}<br>P/B {{ "%.2f"|format(c.pb) if c.pb else "N/A" }}</span>
+                        </div>
+                        <button class="details-btn" onclick="openCompanyModal('{{ c.ticker }}')">&#9776; Financial Vitals</button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- ANALYST NOTE: macro view -->
+            <div class="analyst-note">
+                <h2 class="section-title" style="font-size:1.15rem;">{{ report.title2 }}</h2>
+                {% for para in report.article2.split('\n\n') if para.strip() %}
                 <p>{{ para.strip() }}</p>
                 {% endfor %}
             </div>
-        </article>
 
+            <!-- PERFORMANCE TABLE: variations -->
+            <div class="performance-section">
+                <h2 class="section-title">Global Asset Performance</h2>
+                <table class="ledger-table">
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>1 Day</th>
+                            <th>5 Days</th>
+                            <th>1 Month</th>
+                            <th>1 Year</th>
+                            <th>3 Years</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in report.variations %}
+                        {% set p = v.periods %}
+                        <tr>
+                            <td class="asset-name">{{ v.name }}<span class="asset-symbol">({{ v.symbol }})</span></td>
+                            <td class="perf-val {{ p.one_day | pct_class }}">{{ p.one_day | fmt_pct }}</td>
+                            <td class="perf-val {{ p.five_days | pct_class }}">{{ p.five_days | fmt_pct }}</td>
+                            <td class="perf-val {{ p.one_month | pct_class }}">{{ p.one_month | fmt_pct }}</td>
+                            <td class="perf-val {{ p.one_year | pct_class }}">{{ p.one_year | fmt_pct }}</td>
+                            <td class="perf-val {{ p.three_years | pct_class }}">{{ p.three_years | fmt_pct }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div><!-- .content-col -->
+
+        <!-- MACRO PULSE SIDEBAR (sticky, full page height) -->
         <aside class="sidebar">
             <h2 class="section-title" style="font-size:1.05rem;">Macro Pulse</h2>
             <div class="sidebar-scroll">
@@ -539,75 +594,20 @@
                         {{ ind.name }}
                         <button class="info-btn" data-help="{{ ind.help | e }}" onclick="openModal(this.closest('.ledger-item').querySelector('.ledger-name').childNodes[0].textContent.trim(), this.dataset.help)">[?]</button>
                     </div>
-                    <span class="ledger-val {% if ind.color == 'green' %}val-good{% elif ind.color == 'red' %}val-bad{% endif %}">{{ ind.value }}</span>
+                    <span class="ledger-val {% if ind.color == 'green' %}val-good{% elif ind.color == 'red' %}val-bad{% endif %}">
+                        {%- if ind.value is not none -%}
+                            {{ ind.value | fmt_ind(ind.unit) }}
+                            {%- if ind.label %} <span style="font-size:0.68rem;opacity:0.7">{{ ind.label }}</span>{%- endif -%}
+                        {%- elif ind.label -%}
+                            {{ ind.label }}
+                        {%- else -%}—{%- endif -%}
+                    </span>
                 </div>
                 {% endfor %}
             </div>
         </aside>
-    </div>
 
-    <!-- COMPANIES SCROLLER -->
-    <div class="scroller-wrapper">
-        <h2 class="section-title">Selected Companies</h2>
-        <div class="scroller-container">
-            {% for c in report.companies %}
-            <div class="index-card">
-                <div class="index-header">
-                    <span class="ticker">{{ c.ticker }}</span>
-                    <span class="ticker-badge">{{ c.market_cap | fmt_large }}</span>
-                </div>
-                <div class="price-row">
-                    <span class="price-current">${{ c.price | fmt_price }}</span>
-                    <span class="price-meta">P/E {{ "%.1f"|format(c.pe) if c.pe else "N/A" }} &nbsp;|&nbsp; P/B {{ "%.2f"|format(c.pb) if c.pb else "N/A" }}</span>
-                </div>
-                <p class="notes-area">{{ c.text }}</p>
-                <button class="details-btn" onclick="openCompanyModal('{{ c.ticker }}')">&#9776; Financial Vitals</button>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- ANALYST NOTE: macro view -->
-    <div class="analyst-note">
-        <h2 class="section-title" style="font-size:1.15rem;">{{ report.title2 }}</h2>
-        {% for para in report.article2.split('\n\n') if para.strip() %}
-        <p>{{ para.strip() }}</p>
-        {% endfor %}
-        <div class="signature">Th. Reolon</div>
-    </div>
-
-    <!-- PERFORMANCE TABLE: variations -->
-    <div class="performance-section">
-        <h2 class="section-title">Global Asset Performance</h2>
-        <table class="ledger-table">
-            <thead>
-                <tr>
-                    <th>Asset</th>
-                    <th>1 Day</th>
-                    <th>5 Days</th>
-                    <th>1 Month</th>
-                    <th>1 Year</th>
-                    <th>3 Years</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for v in report.variations %}
-                {% set p = v.periods %}
-                <tr>
-                    <td class="asset-name">{{ v.name }}<span class="asset-symbol">({{ v.symbol }})</span></td>
-                    <td class="perf-val {{ p.one_day | pct_class }}">{{ p.one_day | fmt_pct }}</td>
-                    <td class="perf-val {{ p.five_days | pct_class }}">{{ p.five_days | fmt_pct }}</td>
-                    <td class="perf-val {{ p.one_month | pct_class }}">{{ p.one_month | fmt_pct }}</td>
-                    <td class="perf-val {{ p.one_year | pct_class }}">{{ p.one_year | fmt_pct }}</td>
-                    <td class="perf-val {{ p.three_years | pct_class }}">{{ p.three_years | fmt_pct }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <div style="margin-top:1.5rem;font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-faded);text-align:right;letter-spacing:0.05em;">
-            Historical records verified as of closing bell.
-        </div>
-    </div>
+    </div><!-- .page-layout -->
 
 </div><!-- .journal-page -->
 
@@ -679,6 +679,45 @@
         return sign + '$' + abs.toLocaleString();
     }
 
+    // ── Live prices (Yahoo Finance) ────────────────────────────────────────────
+    const _tickers = companiesData.map(c => c.ticker);
+
+    async function fetchLivePrices() {
+        if (!_tickers.length) return;
+        const symbols = _tickers.join(',');
+        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=regularMarketPrice`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) return;
+            const json = await res.json();
+            const quotes = json?.quoteResponse?.result || [];
+            for (const q of quotes) {
+                const ticker = q.symbol;
+                const live = q.regularMarketPrice;
+                if (live == null) continue;
+
+                const liveEl  = document.getElementById('live-' + ticker);
+                const deltaEl = document.getElementById('delta-' + ticker);
+                if (liveEl) liveEl.textContent = '$' + live.toFixed(2);
+
+                if (deltaEl) {
+                    const ref = companiesData.find(c => c.ticker === ticker)?.price;
+                    if (ref != null && ref !== 0) {
+                        const pct = ((live - ref) / ref) * 100;
+                        const sign = pct >= 0 ? '+' : '';
+                        deltaEl.textContent = sign + pct.toFixed(2) + '%';
+                        deltaEl.style.color = pct >= 0 ? 'var(--ink-green)' : 'var(--ink-accent)';
+                    }
+                }
+            }
+        } catch (e) {
+            // silently ignore network errors — price display degrades gracefully
+        }
+    }
+
+    fetchLivePrices();
+    setInterval(fetchLivePrices, 5 * 60 * 1000);
+
     function openCompanyModal(ticker) {
         const c = companiesData.find(x => x.ticker === ticker);
         if (!c) return;
@@ -710,6 +749,7 @@
                 <div class="ledger-item"><span class="ledger-name">Price / Book</span><span class="ledger-val">${c.pb != null ? c.pb.toFixed(2) + '×' : 'N/A'}</span></div>
                 ${chartHtml}
                 ${c.description ? `<p style="margin-top:1rem;font-style:italic;font-size:0.82rem;color:var(--ink-faded);line-height:1.6">${c.description.substring(0, 320)}${c.description.length > 320 ? '…' : ''}</p>` : ''}
+                ${c.text ? `<div style="margin-top:1.25rem;border-top:1px dashed var(--ink-faded);padding-top:1rem;font-size:0.88rem;line-height:1.7;color:var(--ink-light)">${c.text.replace(/\n/g, '<br>')}</div>` : ''}
             </div>`;
         openModal(ticker + ' — Financial Vitals', html);
     }
