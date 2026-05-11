@@ -1,4 +1,20 @@
 services:
+  report-server:
+    build:
+      context: .
+      target: report-server
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount local output so the server can fall back to local reports in dev
+      - ./output/pipeline:/app/output/pipeline:ro
+      # Mount GCP credentials if using ADC locally
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-/dev/null}:/gcp/creds.json:ro
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /gcp/creds.json
+    restart: unless-stopped
+
   run-tests:
     build:
       context: .

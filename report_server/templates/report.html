@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Market Ledger — {{ report.generated_at | fmt_date }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400;1,600&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Mr+De+Haviland&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper: #f4f1ea;
+            --paper-light: #fdfbf7;
+            --paper-dark: #e8e4d9;
+            --ink-main: #2b2826;
+            --ink-light: #4a4542;
+            --ink-faded: #8c8279;
+            --ink-accent: #6b2d26;
+            --ink-navy: #1a2a40;
+            --ink-green: #20402e;
+            --font-heading: 'Cinzel', serif;
+            --font-body: 'Cormorant Garamond', serif;
+            --font-mono: 'Courier Prime', monospace;
+            --font-script: 'Mr De Haviland', cursive;
+            --border-thin: 1px solid var(--ink-main);
+            --border-thick: 3px solid var(--ink-main);
+            --border-double: 3px double var(--ink-main);
+            --shadow-paper: 2px 4px 12px rgba(43,40,38,0.08);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; scrollbar-width:thin; scrollbar-color:var(--ink-faded) transparent; }
+        body {
+            background-color: #dcd7c9;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+            color: var(--ink-main);
+            font-family: var(--font-body);
+            font-size: 18px;
+            line-height: 1.6;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        .journal-page {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: var(--paper);
+            background-image:
+                linear-gradient(90deg, transparent 40px, rgba(107,45,38,0.1) 40px, rgba(107,45,38,0.1) 42px, transparent 42px),
+                linear-gradient(var(--paper-dark) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 28px;
+            background-position: 0 0, 0 14px;
+            box-shadow: var(--shadow-paper), 0 0 40px rgba(0,0,0,0.05) inset;
+            position: relative;
+            padding: 3rem 4rem 5rem 4rem;
+            border-radius: 2px;
+        }
+        .journal-page::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.6' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08' mix-blend-mode='multiply'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 10;
+        }
+        header {
+            text-align: center;
+            border-bottom: var(--border-thick);
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .issue-meta {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: var(--border-thin);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--ink-light);
+        }
+        h1.masthead {
+            font-family: var(--font-heading);
+            font-size: 4rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            line-height: 1;
+        }
+        .subtitle {
+            font-family: var(--font-body);
+            font-style: italic;
+            font-size: 1.2rem;
+            color: var(--ink-light);
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 3rem;
+            margin-bottom: 3rem;
+            align-items: start;
+        }
+        h2.section-title {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: var(--border-double);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--paper);
+            display: inline-block;
+            padding-right: 1rem;
+        }
+        .article-columns {
+            column-count: 2;
+            column-gap: 2.5rem;
+            text-align: justify;
+        }
+        .article-columns p {
+            margin-bottom: 1.2rem;
+            text-indent: 1.5rem;
+        }
+        .article-columns p:first-of-type { text-indent: 0; }
+        .article-columns p:first-of-type::first-letter {
+            font-family: var(--font-heading);
+            font-size: 4rem;
+            float: left;
+            line-height: 0.8;
+            margin-right: 0.5rem;
+            margin-top: 0.2rem;
+            color: var(--ink-main);
+        }
+        .sidebar {
+            background-color: var(--paper-light);
+            border: var(--border-thin);
+            padding: 1.5rem;
+            box-shadow: 2px 2px 0 rgba(43,40,38,0.1);
+            position: relative;
+        }
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            top: -10px; left: 50%;
+            transform: translateX(-50%);
+            width: 12px; height: 12px;
+            background: radial-gradient(circle at 30% 30%, #a8a8a8, #444);
+            border-radius: 50%;
+            box-shadow: 1px 2px 3px rgba(0,0,0,0.3);
+            z-index: 2;
+        }
+        .sidebar-scroll {
+            max-height: 580px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .ledger-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 1px dashed var(--ink-faded);
+            padding: 0.6rem 0;
+        }
+        .ledger-item:last-child { border-bottom: none; }
+        .ledger-name {
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex: 1;
+            padding-right: 0.5rem;
+        }
+        .ledger-val {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        .val-good { color: var(--ink-green); }
+        .val-bad  { color: var(--ink-accent); }
+        .info-btn {
+            background: none; border: none;
+            font-family: var(--font-body);
+            font-style: italic; font-size: 0.75rem;
+            color: var(--ink-navy); cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            transition: color 0.2s;
+            flex-shrink: 0;
+        }
+        .info-btn:hover { color: var(--ink-accent); }
+        .details-btn {
+            display: block; width: 100%;
+            margin-top: 0.5rem;
+            background: transparent;
+            border: 1px solid var(--ink-faded);
+            font-family: var(--font-mono);
+            font-size: 0.7rem; text-transform: uppercase;
+            padding: 4px; cursor: pointer;
+            color: var(--ink-light);
+            transition: all 0.2s;
+            background: var(--paper-light);
+            position: relative; z-index: 5;
+        }
+        .details-btn:hover { background: var(--ink-navy); color: var(--paper); border-color: var(--ink-navy); }
+        .scroller-wrapper { margin-bottom: 3rem; position: relative; }
+        .scroller-container {
+            display: flex; gap: 1.5rem;
+            overflow-x: auto;
+            padding: 0.5rem 0 1.5rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--ink-main) transparent;
+        }
+        .index-card {
+            min-width: 280px;
+            background: var(--paper-light);
+            border: 1px solid #d0c8b8;
+            border-top: 5px solid var(--ink-accent);
+            padding: 1.25rem;
+            box-shadow: var(--shadow-paper);
+            position: relative;
+            background-image: repeating-linear-gradient(transparent, transparent 27px, #e8e4d9 27px, #e8e4d9 28px);
+            background-position: 0 4.5rem;
+        }
+        .index-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 1rem;
+            background: var(--paper-light);
+            padding-bottom: 0.5rem;
+        }
+        .ticker { font-family: var(--font-heading); font-weight: 700; font-size: 1.4rem; }
+        .ticker-badge { font-family: var(--font-mono); font-size: 0.65rem; color: var(--ink-light); text-transform: uppercase; }
+        .price-row {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin-bottom: 0.5rem;
+            background: var(--paper-light);
+        }
+        .price-current { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; }
+        .price-meta { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-light); }
+        .notes-area {
+            width: 100%; height: 84px;
+            background: transparent; border: none;
+            color: var(--ink-navy);
+            font-family: var(--font-script);
+            font-size: 1.3rem; line-height: 28px;
+            resize: none; outline: none; overflow: hidden;
+        }
+        .ink-up  { color: var(--ink-green); }
+        .ink-down { color: var(--ink-accent); }
+        .analyst-note {
+            border: var(--border-thin);
+            padding: 2rem;
+            position: relative;
+            background-color: var(--paper-light);
+            margin-bottom: 3rem;
+        }
+        .analyst-note::before {
+            content: '"';
+            font-family: var(--font-heading);
+            font-size: 5rem; color: var(--ink-faded);
+            position: absolute; top: -1.5rem; left: 1rem;
+            line-height: 1; background: var(--paper);
+        }
+        .analyst-note p {
+            font-style: italic; font-size: 1.1rem;
+            text-align: justify; margin-bottom: 1rem;
+        }
+        .signature {
+            font-family: var(--font-script);
+            font-size: 2.5rem; color: var(--ink-navy);
+            text-align: right; margin-top: 1rem;
+            transform: rotate(-3deg); display: inline-block; float: right;
+        }
+        .performance-section {
+            margin-top: 3rem;
+            border-top: var(--border-double);
+            padding-top: 2rem;
+            clear: both;
+        }
+        .ledger-table {
+            width: 100%; border-collapse: collapse;
+            font-family: var(--font-mono); font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+        .ledger-table th {
+            text-align: left; border-bottom: var(--border-thick);
+            padding: 0.75rem;
+            font-family: var(--font-heading); font-size: 0.8rem;
+            text-transform: uppercase; color: var(--ink-light);
+        }
+        .ledger-table td { padding: 0.75rem; border-bottom: 1px dashed var(--ink-faded); }
+        .ledger-table tr:last-child td { border-bottom: none; }
+        .asset-name { font-family: var(--font-body); font-weight: 700; font-size: 1.1rem; }
+        .perf-val { font-weight: 700; }
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(43,40,38,0.6);
+            backdrop-filter: blur(2px);
+            display: none; justify-content: center; align-items: center;
+            z-index: 1000; opacity: 0; transition: opacity 0.3s;
+        }
+        .modal-overlay.active { display: flex; opacity: 1; }
+        .modal-box {
+            background: var(--paper); border: var(--border-thick);
+            padding: 2rem; max-width: 480px; width: 90%;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.8);
+            position: relative;
+            background-image: linear-gradient(var(--paper-dark) 1px, transparent 1px);
+            background-size: 100% 28px; background-position: 0 14px;
+            max-height: 85vh; overflow-y: auto;
+        }
+        .modal-title {
+            font-family: var(--font-heading); font-size: 1.3rem; font-weight: 700;
+            margin-bottom: 1rem; background: var(--paper); display: inline-block;
+        }
+        .modal-close {
+            position: absolute; top: 1rem; right: 1.5rem;
+            background: none; border: none;
+            font-family: var(--font-mono); font-size: 1.5rem;
+            cursor: pointer; color: var(--ink-main);
+        }
+        .modal-text { font-family: var(--font-mono); font-size: 0.88rem; line-height: 1.8; color: var(--ink-navy); }
+        .chart-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.8rem; }
+        .chart-table th { text-align: right; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--ink-faded); color: var(--ink-light); font-size: 0.72rem; text-transform: uppercase; }
+        .chart-table th:first-child { text-align: left; }
+        .chart-table td { text-align: right; padding: 0.3rem 0.5rem; border-bottom: 1px dashed var(--ink-faded); }
+        .chart-table td:first-child { text-align: left; color: var(--ink-light); }
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .article-columns { column-count: 1; }
+            .journal-page { padding: 2rem; }
+            h1.masthead { font-size: 3rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="journal-page">
+
+    <!-- HEADER -->
+    <header>
+        <div class="issue-meta">
+            <span>{{ report.generated_at | fmt_date }}</span>
+            <span>The Market Ledger</span>
+            <span>Daily Edition</span>
+        </div>
+        <h1 class="masthead">The Market Ledger</h1>
+        <div class="subtitle">An Ink &amp; Pen Journal of Intelligence &amp; Trade</div>
+    </header>
+
+    <!-- MAIN GRID: article + indicators sidebar -->
+    <div class="main-grid">
+        <article>
+            <h2 class="section-title">{{ report.title }}</h2>
+            <div class="article-columns">
+                {% for para in report.article.split('\n\n') if para.strip() %}
+                <p>{{ para.strip() }}</p>
+                {% endfor %}
+            </div>
+        </article>
+
+        <aside class="sidebar">
+            <h2 class="section-title" style="font-size:1.1rem;">Macro Pulse</h2>
+            <div class="sidebar-scroll">
+                {% for ind in report.indicators %}
+                <div class="ledger-item">
+                    <div class="ledger-name">
+                        {{ ind.name }}
+                        <button class="info-btn" data-help="{{ ind.help | e }}" onclick="openModal(this.closest('.ledger-item').querySelector('.ledger-name').childNodes[0].textContent.trim(), this.dataset.help)">[?]</button>
+                    </div>
+                    <span class="ledger-val {% if ind.color == 'green' %}val-good{% elif ind.color == 'red' %}val-bad{% endif %}">{{ ind.value }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </aside>
+    </div>
+
+    <!-- COMPANIES SCROLLER -->
+    <div class="scroller-wrapper">
+        <h2 class="section-title">Selected Companies</h2>
+        <div class="scroller-container">
+            {% for c in report.companies %}
+            <div class="index-card">
+                <div class="index-header">
+                    <span class="ticker">{{ c.ticker }}</span>
+                    <span class="ticker-badge">{{ c.market_cap | fmt_large }}</span>
+                </div>
+                <div class="price-row">
+                    <span class="price-current">${{ c.price | fmt_price }}</span>
+                    <span class="price-meta">P/E&nbsp;{{ "%.1f" | format(c.pe) if c.pe else "N/A" }} &nbsp;|&nbsp; P/B&nbsp;{{ "%.2f" | format(c.pb) if c.pb else "N/A" }}</span>
+                </div>
+                <textarea class="notes-area" spellcheck="false">{{ c.text }}</textarea>
+                <button class="details-btn" onclick="openCompanyModal('{{ c.ticker }}')">Financial Vitals</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- ANALYST NOTE: macro view -->
+    <div class="analyst-note">
+        <h2 class="section-title" style="font-size:1.2rem;">{{ report.title2 }}</h2>
+        {% for para in report.article2.split('\n\n') if para.strip() %}
+        <p>{{ para.strip() }}</p>
+        {% endfor %}
+        <div class="signature">Th. Reolon</div>
+    </div>
+
+    <!-- PERFORMANCE TABLE: variations -->
+    <div class="performance-section">
+        <h2 class="section-title">Global Asset Performance</h2>
+        <table class="ledger-table">
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>1 Day</th>
+                    <th>5 Days</th>
+                    <th>1 Month</th>
+                    <th>1 Year</th>
+                    <th>3 Years</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in report.variations %}
+                {% set p = v.periods %}
+                <tr>
+                    <td class="asset-name">{{ v.name }} <span style="font-family:var(--font-mono);font-size:0.7rem;color:var(--ink-faded);">({{ v.symbol }})</span></td>
+                    <td class="perf-val {{ p.one_day | pct_class }}">{{ p.one_day | fmt_pct }}</td>
+                    <td class="perf-val {{ p.five_days | pct_class }}">{{ p.five_days | fmt_pct }}</td>
+                    <td class="perf-val {{ p.one_month | pct_class }}">{{ p.one_month | fmt_pct }}</td>
+                    <td class="perf-val {{ p.one_year | pct_class }}">{{ p.one_year | fmt_pct }}</td>
+                    <td class="perf-val {{ p.three_years | pct_class }}">{{ p.three_years | fmt_pct }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div style="margin-top:1rem;font-family:var(--font-script);font-size:1.2rem;color:var(--ink-faded);text-align:right;">
+            Historical records verified as of closing bell.
+        </div>
+    </div>
+
+</div><!-- .journal-page -->
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()">×</button>
+        <div class="modal-title" id="modal-title">Details</div>
+        <div class="modal-text" id="modal-text"></div>
+    </div>
+</div>
+
+<script>
+    // Embed company data for the modal
+    const companiesData = {{ report.companies | tojson }};
+
+    function openModal(title, content) {
+        document.getElementById('modal-title').textContent = title;
+        const el = document.getElementById('modal-text');
+        el.innerHTML = content.includes('<') ? content : content.replace(/\n/g, '<br>');
+        const overlay = document.getElementById('modal-overlay');
+        overlay.style.display = 'flex';
+        requestAnimationFrame(() => overlay.classList.add('active'));
+    }
+
+    function closeModal() {
+        const overlay = document.getElementById('modal-overlay');
+        overlay.classList.remove('active');
+        setTimeout(() => overlay.style.display = 'none', 300);
+    }
+
+    function fmtLarge(v) {
+        if (v == null) return 'N/A';
+        if (v >= 1e12) return '$' + (v / 1e12).toFixed(2) + 'T';
+        if (v >= 1e9)  return '$' + (v / 1e9).toFixed(2)  + 'B';
+        if (v >= 1e6)  return '$' + (v / 1e6).toFixed(1)  + 'M';
+        return '$' + v.toLocaleString();
+    }
+
+    function fmtNum(v) {
+        if (v == null) return '—';
+        if (Math.abs(v) >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+        if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+        return v.toLocaleString();
+    }
+
+    function openCompanyModal(ticker) {
+        const c = companiesData.find(x => x.ticker === ticker);
+        if (!c) return;
+
+        let chartHtml = '';
+        if (c.chart && c.chart.length > 0) {
+            chartHtml = `
+                <table class="chart-table" style="margin-top:1rem;">
+                    <thead><tr>
+                        <th>Period</th>
+                        <th>Revenue</th>
+                        <th>Op. Income</th>
+                        <th>Net Income</th>
+                        <th>Debt/Assets</th>
+                    </tr></thead>
+                    <tbody>
+                        ${c.chart.map(pt => `<tr>
+                            <td>${pt.period || '—'}</td>
+                            <td>${fmtNum(pt.net_revenue)}</td>
+                            <td>${fmtNum(pt.ebitda)}</td>
+                            <td>${fmtNum(pt.earnings)}</td>
+                            <td>${pt.debt_assets_ratio != null ? (pt.debt_assets_ratio * 100).toFixed(1) + '%' : '—'}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        const html = `
+            <div>
+                <div class="ledger-item"><span class="ledger-name">${c.name || ticker}</span></div>
+                <div class="ledger-item"><span class="ledger-name">Market Cap</span><span class="ledger-val">${fmtLarge(c.market_cap)}</span></div>
+                <div class="ledger-item"><span class="ledger-name">Price / Earnings</span><span class="ledger-val">${c.pe != null ? c.pe.toFixed(1) + 'x' : 'N/A'}</span></div>
+                <div class="ledger-item"><span class="ledger-name">Price / Book</span><span class="ledger-val">${c.pb != null ? c.pb.toFixed(2) + 'x' : 'N/A'}</span></div>
+                ${chartHtml}
+                <p style="margin-top:1.25rem;font-style:italic;font-size:0.85rem;color:var(--ink-light);">
+                    ${c.description ? c.description.substring(0, 300) + (c.description.length > 300 ? '…' : '') : ''}
+                </p>
+            </div>`;
+        openModal(ticker + ' — Financial Vitals', html);
+    }
+</script>
+</body>
+</html>

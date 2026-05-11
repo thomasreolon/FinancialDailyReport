@@ -18,6 +18,14 @@ COPY src/ ./src/
 ENV PYTHONPATH=/app
 CMD ["python", "-m", "src"]
 
+# --- report server ---
+FROM base AS report-server
+COPY src/ ./src/
+COPY report_server/ ./report_server/
+ENV PYTHONPATH=/app
+EXPOSE 8000
+CMD ["uv", "run", "uvicorn", "report_server.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
 # --- test image (adds pytest) ---
 FROM base AS test
 RUN uv sync --frozen --extra dev
