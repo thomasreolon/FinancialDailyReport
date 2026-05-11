@@ -23,8 +23,14 @@ FROM base AS report-server
 COPY src/ ./src/
 COPY report_server/ ./report_server/
 ENV PYTHONPATH=/app
-EXPOSE 8000
-CMD ["uv", "run", "uvicorn", "report_server.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8080
+CMD ["sh", "-c", "uv run uvicorn report_server.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+
+# --- pipeline job ---
+FROM base AS job
+COPY src/ ./src/
+ENV PYTHONPATH=/app
+CMD ["uv", "run", "python", "src/run_report.py"]
 
 # --- test image (adds pytest) ---
 FROM base AS test
