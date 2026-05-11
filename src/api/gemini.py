@@ -1,13 +1,15 @@
 import time
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Type
 
 from google import genai
 from google.genai import types
 from google.genai.errors import ClientError
+from pydantic import BaseModel
 
 from src.config import GEMINI_API_KEY, GEMINI_API_KEY_FREE, GEMINI_MODEL
 
 T = TypeVar("T")
+M = TypeVar("M", bound=BaseModel)
 
 # Per-minute quota resets after ~60 s; retry free key after this window.
 _FREE_RETRY_AFTER = 60.0
@@ -64,3 +66,40 @@ def generate_with_search(prompt: str, model: str = GEMINI_MODEL) -> str:
             model=model, contents=prompt, config=config
         ).text
     )
+
+
+def generate_structured(prompt: str, schema: Type[M], model: str = GEMINI_MODEL) -> M:
+    """Generate content and parse it into a Pydantic model.
+
+    Uses response_schema to force the model to return valid JSON matching the schema.
+    NOTE: Incompatible with Google Search grounding — use generate_with_search first
+    to fetch fresh data, then pass the result here for structured extraction.
+    """
+    config = types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_schema=schema,
+    )
+    raw = _router.call(
+        lambda client: client.models.generate_content(
+            model=model, contents=prompt, config=config
+        ).text
+    )
+    return schema.model_validate_json(raw)
+
+
+def search_then_extract(search_prompt: str, schema: Type[M], model: str = GEMINI_MODEL) -> M:
+    """Two-step: web-grounded search → structured extraction.
+
+    Step 1 — generate_with_search: retrieves fresh data from the web (no schema constraint).
+    Step 2 — generate_structured: parses the raw text into a typed Pydantic model.
+
+    Use this when you need both real-time web data AND reliable structured output.
+    """
+    raw_text = generate_with_search(search_prompt, model=model)
+    extract_prompt = (
+        "Extract the requested data from the following research text and return it "
+        "as structured data matching the required schema. Use null for any value "
+        "you cannot find with confidence.\n\n"
+        f"Research text:\n{raw_text}"
+    )
+    return generate_structured(extract_prompt, schema, model=model)
