@@ -1,13 +1,14 @@
 """
 The Market Ledger — FastAPI report server.
 
-Serves daily market reports stored in GCS, with a local-file fallback for dev.
-
 Routes:
-    GET /                       latest report (HTML)
-    GET /report/{YYYY-MM-DD}    specific date (HTML)
-    GET /api/latest             latest report (JSON)
-    GET /api/{YYYY-MM-DD}       specific date (JSON)
+    GET /                       redirect to latest report
+    GET /{YYYY-MM-DD}           report with navigation shell
+    GET /raw/{YYYY-MM-DD}       bare report HTML (for iframe)
+    GET /api/latest             latest report JSON
+    GET /api/{YYYY-MM-DD}       specific date JSON
+    GET /health                 health check
+    GET /robots.txt             robots disallow file
 
 Start:
     uvicorn report_server.main:app --reload --port 8000
@@ -15,49 +16,34 @@ Start:
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
-_BUCKET = "the-mind-financial-reports"
-_PREFIX = "reports"
-_LOCAL_FALLBACK = Path(__file__).parent.parent / "output" / "pipeline" / "daily_report.json"
+from report_server import gcs, limiter
+
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 app = FastAPI(title="The Market Ledger")
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 
-# ── GCS helpers ───────────────────────────────────────────────────────────────
+# ── Rate limiter middleware ───────────────────────────────────────────────────
 
-def _gcs_load(blob_name: str) -> dict | None:
-    try:
-        from google.cloud import storage
-        client = storage.Client()
-        blob = client.bucket(_BUCKET).blob(blob_name)
-        if not blob.exists():
-            return None
-        return json.loads(blob.download_as_text())
-    except Exception as exc:
-        print(f"[warn] GCS load failed ({blob_name}): {exc}")
-        return None
+class _RateLimiter(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        ip = request.client.host if request.client else "unknown"
+        if not limiter.is_allowed(ip):
+            return Response("Too Many Requests", status_code=429)
+        return await call_next(request)
 
 
-def _load_latest() -> dict | None:
-    data = _gcs_load(f"{_PREFIX}/latest.json")
-    if data:
-        return data
-    if _LOCAL_FALLBACK.exists():
-        return json.loads(_LOCAL_FALLBACK.read_text())
-    return None
-
-
-def _load_by_date(date_str: str) -> dict | None:
-    return _gcs_load(f"{_PREFIX}/daily_report_{date_str}.json")
+app.add_middleware(_RateLimiter)
 
 
 # ── Jinja2 filters ────────────────────────────────────────────────────────────
@@ -94,6 +80,13 @@ def _fmt_date(iso_str: str) -> str:
         return iso_str
 
 
+def _fmt_ratio(v: float | None) -> str:
+    """Format a 0–1 decimal as a percentage (e.g. 0.42 → '42.0%')."""
+    if v is None:
+        return "N/A"
+    return f"{v * 100:.1f}%"
+
+
 def _pct_class(v: float | None) -> str:
     if v is None:
         return ""
@@ -104,30 +97,25 @@ templates.env.filters["fmt_pct"] = _fmt_pct
 templates.env.filters["fmt_price"] = _fmt_price
 templates.env.filters["fmt_large"] = _fmt_large
 templates.env.filters["fmt_date"] = _fmt_date
+templates.env.filters["fmt_ratio"] = _fmt_ratio
 templates.env.filters["pct_class"] = _pct_class
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@app.get("/", response_class=HTMLResponse)
-async def index(request: Request) -> HTMLResponse:
-    report = _load_latest()
-    if not report:
-        raise HTTPException(status_code=404, detail="No report available yet. Run src/run_report.py first.")
-    return templates.TemplateResponse(request, "report.html", {"report": report})
+@app.get("/health")
+async def health() -> dict:
+    return {"status": "ok"}
 
 
-@app.get("/report/{date_str}", response_class=HTMLResponse)
-async def report_by_date(request: Request, date_str: str) -> HTMLResponse:
-    report = _load_by_date(date_str)
-    if not report:
-        raise HTTPException(status_code=404, detail=f"No report found for {date_str}.")
-    return templates.TemplateResponse(request, "report.html", {"report": report})
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt() -> str:
+    return "User-agent: *\nDisallow: /api/\n"
 
 
 @app.get("/api/latest")
 async def api_latest() -> dict:
-    report = _load_latest()
+    report = gcs.load_latest()
     if not report:
         raise HTTPException(status_code=404, detail="No report available.")
     return report
@@ -135,7 +123,40 @@ async def api_latest() -> dict:
 
 @app.get("/api/{date_str}")
 async def api_by_date(date_str: str) -> dict:
-    report = _load_by_date(date_str)
+    report = gcs.load_report(date_str)
     if not report:
         raise HTTPException(status_code=404, detail=f"No report for {date_str}.")
     return report
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index() -> RedirectResponse:
+    dates = gcs.list_dates()
+    if dates:
+        return RedirectResponse(url=f"/{dates[0]}", status_code=302)
+    report = gcs.load_latest()
+    if report and (gen := report.get("generated_at")):
+        return RedirectResponse(url=f"/{gen[:10]}", status_code=302)
+    raise HTTPException(status_code=404, detail="No report available yet. Run src/run_report.py first.")
+
+
+@app.get("/raw/{date_str}", response_class=HTMLResponse)
+async def raw_report(request: Request, date_str: str) -> HTMLResponse:
+    report = gcs.load_report(date_str)
+    if not report and gcs._LOCAL_FALLBACK.exists():
+        import json
+        report = json.loads(gcs._LOCAL_FALLBACK.read_text())
+    if not report:
+        raise HTTPException(status_code=404, detail=f"No report found for {date_str}.")
+    return templates.TemplateResponse(request, "report.html", {"report": report})
+
+
+@app.get("/{date_str}", response_class=HTMLResponse)
+async def shell(request: Request, date_str: str) -> HTMLResponse:
+    dates = gcs.list_dates()
+    if not dates and gcs._LOCAL_FALLBACK.exists():
+        dates = [date_str]
+    return templates.TemplateResponse(request, "shell.html", {
+        "date_str": date_str,
+        "dates": dates or [date_str],
+    })
