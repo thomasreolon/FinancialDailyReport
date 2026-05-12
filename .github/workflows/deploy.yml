@@ -1,0 +1,78 @@
+name: Deploy to GCP
+
+on:
+  push:
+    branches: [main]
+
+env:
+  PROJECT: the-mind-financial-reports
+  REGION: europe-west1
+  REGISTRY: europe-west1-docker.pkg.dev/the-mind-financial-reports/apps
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # required for Workload Identity Federation
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # ── report-server ──────────────────────────────────────────────────────────
+
+      - name: Build & push report-server image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/report-server:latest"
+          docker build --target report-server -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Deploy Cloud Run service (report-server)
+        run: |
+          gcloud run deploy report-server \
+            --image="${{ env.REGISTRY }}/report-server:latest" \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --allow-unauthenticated \
+            --min-instances=0 \
+            --max-instances=1 \
+            --cpu=1 \
+            --memory=512Mi \
+            --service-account=report-job-sa@${{ env.PROJECT }}.iam.gserviceaccount.com \
+            --project=${{ env.PROJECT }} \
+            --quiet
+
+      # ── report-job ─────────────────────────────────────────────────────────────
+
+      - name: Build & push report-job image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/report-job:latest"
+          docker build --target job -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Update Cloud Run job (report-job)
+        run: |
+          gcloud run jobs update report-job \
+            --image="${{ env.REGISTRY }}/report-job:latest" \
+            --service-account=report-job-sa@${{ env.PROJECT }}.iam.gserviceaccount.com \
+            --region=${{ env.REGION }} \
+            --memory=2Gi \
+            --cpu=2 \
+            --max-retries=0 \
+            --task-timeout=60m \
+            --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,GEMINI_API_KEY_FREE=GEMINI_API_KEY_FREE:latest,SCRAPEDO_API_KEY=SCRAPEDO_API_KEY:latest" \
+            --project=${{ env.PROJECT }} \
+            --quiet
