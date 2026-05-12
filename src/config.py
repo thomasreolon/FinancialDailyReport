@@ -9,6 +9,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 GEMINI_API_KEY: str = os.environ["GEMINI_API_KEY"]
 GEMINI_API_KEY_FREE: str | None = os.environ.get("GEMINI_API_KEY_FREE")
 SCRAPEDO_API_KEY: str | None = os.environ.get("SCRAPEDO_API_KEY")
+FRED_API_KEY: str | None = os.environ.get("FRED_API_KEY")
 
 # GCP Configs
 GEMINI_MODEL: str = "gemini-3-flash-preview"

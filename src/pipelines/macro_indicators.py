@@ -290,6 +290,58 @@ class _GeminiFill(BaseModel):
         None,
         description="Latest ISM Manufacturing PMI reading (above 50 = expansion, below 50 = contraction).",
     )
+    # FRED-sourced fields — filled by Gemini when the FRED endpoint is unreachable
+    yield_curve_10y3m: float | None = Field(
+        None,
+        description="US Treasury yield spread: 10-year minus 3-month, in percentage points (e.g. -0.35).",
+    )
+    fed_funds_rate: float | None = Field(
+        None,
+        description="Current effective federal funds rate as a percentage (e.g. 4.33).",
+    )
+    fed_balance_sheet_trn: float | None = Field(
+        None,
+        description="Federal Reserve total assets (balance sheet size) in USD trillions (e.g. 6.72).",
+    )
+    m2_us_trn: float | None = Field(
+        None,
+        description="US M2 money supply in USD trillions (e.g. 21.5).",
+    )
+    m2_us_yoy_pct: float | None = Field(
+        None,
+        description="US M2 money supply year-over-year growth rate as a percentage (e.g. 3.8).",
+    )
+    rrp_facility_bln: float | None = Field(
+        None,
+        description="Federal Reserve overnight reverse repo (RRP) facility balance in USD billions.",
+    )
+    breakeven_5y: float | None = Field(
+        None,
+        description="5-year TIPS breakeven inflation rate as a percentage (e.g. 2.35).",
+    )
+    breakeven_10y: float | None = Field(
+        None,
+        description="10-year TIPS breakeven inflation rate as a percentage (e.g. 2.28).",
+    )
+    core_pce_yoy: float | None = Field(
+        None,
+        description="US Core PCE price index year-over-year inflation rate as a percentage (e.g. 2.6).",
+    )
+    equity_risk_premium: float | None = Field(
+        None,
+        description=(
+            "S&P 500 equity risk premium: forward earnings yield (100/fwd_PE) minus 10Y real yield "
+            "(nominal 10Y Treasury minus 10Y breakeven inflation), in percentage points."
+        ),
+    )
+    lei_conference_board: float | None = Field(
+        None,
+        description="OECD Composite Leading Indicator (CLI) for the US, amplitude-adjusted (e.g. 99.5).",
+    )
+    lei_mom_pct: float | None = Field(
+        None,
+        description="Month-over-month change in the OECD CLI for the US, as a percentage (e.g. -0.1).",
+    )
 
 
 # Fields in _GeminiFill that map directly to MacroIndicatorsResult fields

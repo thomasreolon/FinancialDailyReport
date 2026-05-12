@@ -46,7 +46,7 @@ class StoneXResult(BaseModel):
 class StoneXNode(ScrapingNode):
     def __init__(self, date: str | None = None):
         if date is None:
-            date = datetime.now(timezone.utc).strftime("%Y-%m-%d") - timedelta(days=1)
+            date = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
         self.date = date
 
     def scrape(self) -> StoneXResult | None:

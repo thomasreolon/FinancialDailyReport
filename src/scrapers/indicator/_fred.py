@@ -1,19 +1,54 @@
-"""Shared FRED data fetcher using the public CSV download endpoint (no API key needed)."""
+"""Shared FRED data fetcher.
+
+Primary: official FRED JSON API (api.stlouisfed.org) when FRED_API_KEY is set.
+Fallback: public CSV download endpoint (fredgraph.csv) — blocked on some cloud IPs.
+"""
 
 from __future__ import annotations
 
 import csv
 import io
+import os
 from datetime import date, timedelta
 
 import requests
 
-_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+_CSV_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+_API_BASE = "https://api.stlouisfed.org/fred/series/observations"
 _HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
 
-def fetch_series(series_id: str) -> list[tuple[date, float]]:
-    resp = requests.get(_BASE, params={"id": series_id}, headers=_HEADERS, timeout=30)
+def _api_key() -> str | None:
+    return os.environ.get("FRED_API_KEY")
+
+
+def _fetch_via_api(series_id: str) -> list[tuple[date, float]]:
+    resp = requests.get(
+        _API_BASE,
+        params={
+            "series_id": series_id,
+            "api_key": _api_key(),
+            "file_type": "json",
+            "sort_order": "asc",
+        },
+        headers=_HEADERS,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    result: list[tuple[date, float]] = []
+    for obs in resp.json().get("observations", []):
+        val_str = obs.get("value", "").strip()
+        if val_str in (".", ""):
+            continue
+        try:
+            result.append((date.fromisoformat(obs["date"]), float(val_str)))
+        except (ValueError, KeyError):
+            continue
+    return result
+
+
+def _fetch_via_csv(series_id: str) -> list[tuple[date, float]]:
+    resp = requests.get(_CSV_BASE, params={"id": series_id}, headers=_HEADERS, timeout=30)
     resp.raise_for_status()
     result: list[tuple[date, float]] = []
     reader = csv.reader(io.StringIO(resp.text))
@@ -26,6 +61,12 @@ def fetch_series(series_id: str) -> list[tuple[date, float]]:
         except (ValueError, IndexError):
             continue
     return result
+
+
+def fetch_series(series_id: str) -> list[tuple[date, float]]:
+    if _api_key():
+        return _fetch_via_api(series_id)
+    return _fetch_via_csv(series_id)
 
 
 def get_latest(series_id: str) -> tuple[date, float]:
