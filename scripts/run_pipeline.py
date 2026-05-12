@@ -12,7 +12,6 @@ Usage:
     python scripts/run_pipeline.py --only screened_stocks
     python scripts/run_pipeline.py --only macro_indicators
     python scripts/run_pipeline.py --only build_report
-    python scripts/run_pipeline.py --limit 10             # cap screened_stocks tickers
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ sys.path.insert(0, str(ROOT))
 OUTPUT_DIR = ROOT / "output" / "pipeline"
 
 
-def run_screened_stocks(limit: int | None) -> None:
+def run_screened_stocks() -> None:
     from src.pipelines.screened_stocks import run_pipeline
     print("\n── screened_stocks ──────────────────────────────────────")
     result = run_pipeline()
@@ -81,8 +80,6 @@ def main() -> None:
         choices=["screened_stocks", "news", "macro_indicators", "build_report"],
         help="Run only one pipeline (default: all)",
     )
-    parser.add_argument("--limit", type=int, default=None,
-                        help="Cap tickers for screened_stocks (default: all)")
     parser.add_argument("--force", action="store_true",
                         help="Ignore today's checkpoints and re-run all stages (build_report only)")
     args = parser.parse_args()
@@ -96,7 +93,7 @@ def main() -> None:
     if args.only == "news" or args.only is None:
         run_news()
     if args.only == "screened_stocks" or args.only is None:
-        run_screened_stocks(args.limit)
+        run_screened_stocks()
     if args.only == "macro_indicators" or args.only is None:
         run_macro_indicators()
 

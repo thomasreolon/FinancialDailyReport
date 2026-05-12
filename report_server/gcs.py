@@ -70,7 +70,8 @@ def find_latest() -> dict | None:
     try:
         from google.cloud import storage  # type: ignore
         blobs = sorted(
-            storage.Client().bucket(_BUCKET).list_blobs(prefix=f"{_PREFIX}/daily_report_"),
+            [b for b in storage.Client().bucket(_BUCKET).list_blobs(prefix=f"{_PREFIX}/")
+             if not b.name.endswith("/latest.json")],
             key=lambda b: b.name,
             reverse=True,
         )
