@@ -5,6 +5,20 @@ REGION   := "europe-west1"
 REGISTRY := REGION + "-docker.pkg.dev/" + PROJECT + "/apps"
 SA       := "report-job-sa@" + PROJECT + ".iam.gserviceaccount.com"
 
+# ── Health checks ─────────────────────────────────────────────────────────────
+
+# Run all scraper health checks (~5 min)
+health:
+    uv run python scripts/health_check.py
+
+# Health check + full pipeline smoke test (costs ~1 Gemini call)
+health-full:
+    uv run python scripts/health_check.py --full
+
+# Health check for a single category: indicator | news | screener | stock | technical
+health-cat category:
+    uv run python scripts/health_check.py --category {{category}}
+
 # ── Local dev ──────────────────────────────────────────────────────────────────
 
 # Start the report server locally (http://localhost:8000)

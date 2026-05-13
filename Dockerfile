@@ -18,9 +18,12 @@ COPY src/ ./src/
 ENV PYTHONPATH=/app
 CMD ["python", "-m", "src"]
 
-# --- report server ---
-FROM base AS report-server
-COPY src/ ./src/
+# --- report server (slim — only FastAPI + GCS, no scraping stack) ---
+FROM python:3.12-slim AS report-server
+WORKDIR /app
+RUN pip install uv
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --only-group server
 COPY report_server/ ./report_server/
 ENV PYTHONPATH=/app
 EXPOSE 8080
@@ -34,7 +37,7 @@ CMD ["uv", "run", "python", "src/run_report.py"]
 
 # --- test image (adds pytest) ---
 FROM base AS test
-RUN uv sync --frozen --extra dev
+RUN uv sync --frozen
 COPY src/ ./src/
 COPY tests/ ./tests/
 ENV PYTHONPATH=/app

@@ -382,9 +382,15 @@ dependencies = [
     { name = "yt-dlp" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 dev = [
     { name = "pytest" },
+]
+server = [
+    { name = "fastapi", extra = ["standard"] },
+    { name = "google-cloud-storage" },
+    { name = "jinja2" },
+    { name = "python-dotenv" },
 ]
 
 [package.metadata]
@@ -398,13 +404,20 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "playwright", specifier = ">=1.59.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "requests", specifier = ">=2.33.1" },
     { name = "youtube-transcript-api", specifier = ">=0.6.0" },
     { name = "yt-dlp", specifier = ">=2024.1.0" },
 ]
-provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.0.0" }]
+server = [
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.136.1" },
+    { name = "google-cloud-storage", specifier = ">=3.10.1" },
+    { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
+]
 
 [[package]]
 name = "email-validator"

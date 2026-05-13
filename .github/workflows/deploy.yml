@@ -40,6 +40,13 @@ jobs:
           docker build --target report-server -t "$IMAGE" .
           docker push "$IMAGE"
 
+      - name: Prune untagged report-server images
+        run: |
+          gcloud artifacts docker images list ${{ env.REGISTRY }}/report-server \
+            --filter="tags=''" --format="get(version)" --quiet 2>/dev/null \
+            | xargs -r -I{} gcloud artifacts docker images delete \
+              "${{ env.REGISTRY }}/report-server@{}" --quiet --async 2>/dev/null || true
+
       - name: Deploy Cloud Run service (report-server)
         run: |
           gcloud run deploy report-server \
@@ -62,6 +69,13 @@ jobs:
           IMAGE="${{ env.REGISTRY }}/report-job:latest"
           docker build --target job -t "$IMAGE" .
           docker push "$IMAGE"
+
+      - name: Prune untagged report-job images
+        run: |
+          gcloud artifacts docker images list ${{ env.REGISTRY }}/report-job \
+            --filter="tags=''" --format="get(version)" --quiet 2>/dev/null \
+            | xargs -r -I{} gcloud artifacts docker images delete \
+              "${{ env.REGISTRY }}/report-job@{}" --quiet --async 2>/dev/null || true
 
       - name: Update Cloud Run job (report-job)
         run: |
