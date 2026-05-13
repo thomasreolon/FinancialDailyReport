@@ -19,6 +19,14 @@ python scripts/health_check.py
 # With pipeline smoke test — also runs macro_indicators end-to-end (costs ~1 Gemini API call)
 python scripts/health_check.py --full
 
+# With live production server check — hits the Cloud Run URL, checks report freshness
+# (warns if latest report is >3 days old) and section completeness (title, article,
+# companies, indicators, variations). Exit code 1 if server is unreachable.
+python scripts/health_check.py --live
+
+# Flags can be combined
+python scripts/health_check.py --full --live
+
 # Single category if you already know where the problem is
 python scripts/health_check.py --category indicator
 python scripts/health_check.py --category news
@@ -27,7 +35,7 @@ python scripts/health_check.py --category stock
 python scripts/health_check.py --category technical
 ```
 
-The report is written to `output/health_YYYY-MM-DD.md`. Exit code 1 means at least one scraper FAILed.
+The report is written to `output/health_YYYY-MM-DD.md`. Exit code 1 means at least one scraper FAILed or the live server is unreachable.
 
 ---
 

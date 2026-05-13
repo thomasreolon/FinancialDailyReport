@@ -6,6 +6,7 @@ Exits with code 1 if any scraper FAIL so CI/agent runs can detect regressions.
 Usage:
     python scripts/health_check.py                       # all scrapers (~5 min)
     python scripts/health_check.py --full                # + macro pipeline smoke test
+    python scripts/health_check.py --live                # + live production server check
     python scripts/health_check.py --category indicator  # single category
 """
 
@@ -26,6 +27,7 @@ sys.path.insert(0, str(ROOT))
 
 OUTPUT_DIR = ROOT / "output"
 CATEGORIES = ["indicator", "news", "screener", "stock", "technical"]
+PROD_URL = "https://report-server-rz3teebbga-ew.a.run.app"
 
 
 # ── Status ───────────────────────────────────────────────────────────────────
@@ -64,6 +66,16 @@ class Spec:
     extract: Callable[[Any], tuple[str, str, list[str]]]
     stale_after_days: int = 30  # warn when data is older than this
     none_ok: bool = False        # True = None return is sometimes expected, not a failure
+
+
+@dataclass
+class LiveCheckResult:
+    status: str = Status.OK
+    server_up: bool = False
+    report_date: str = "—"
+    age_days: int | None = None
+    warnings: list[str] = field(default_factory=list)
+    error_msg: str | None = None
 
 
 # ── Runner ───────────────────────────────────────────────────────────────────
@@ -369,6 +381,71 @@ def run_smoke_test() -> dict:
         return {"error": f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"}
 
 
+# ── Live server check ─────────────────────────────────────────────────────────
+
+def check_live_server() -> LiveCheckResult:
+    """Hit the production Cloud Run URL and validate freshness + section completeness."""
+    import urllib.error
+    import urllib.request
+
+    r = LiveCheckResult()
+
+    def _get(path: str, timeout: int = 15) -> dict:
+        with urllib.request.urlopen(f"{PROD_URL}{path}", timeout=timeout) as resp:
+            import json
+            return json.loads(resp.read())
+
+    # 1. /health — basic reachability
+    try:
+        health = _get("/health", timeout=10)
+        if health.get("status") != "ok":
+            r.status = Status.FAIL
+            r.error_msg = f"/health returned unexpected body: {health}"
+            return r
+        r.server_up = True
+    except Exception as exc:
+        r.status = Status.FAIL
+        r.error_msg = f"server unreachable: {exc}"
+        return r
+
+    # 2. /api/latest — fetch the latest report JSON
+    try:
+        data = _get("/api/latest", timeout=20)
+    except Exception as exc:
+        r.status = Status.FAIL
+        r.error_msg = f"/api/latest failed: {exc}"
+        return r
+
+    report = data.get("report", {})
+
+    # 3. Freshness — warn if older than 3 days (covers weekends)
+    generated_at = report.get("generated_at", "")
+    if generated_at:
+        r.report_date = generated_at[:10]
+        r.age_days = (date.today() - date.fromisoformat(r.report_date)).days
+        if r.age_days > 3:
+            r.warnings.append(
+                f"report is {r.age_days}d old (generated {r.report_date})"
+                " — pipeline may not have run recently"
+            )
+    else:
+        r.warnings.append("generated_at missing from report")
+
+    # 4. Section completeness — each field is expected to be non-empty on a good run
+    for field_name, label in [
+        ("title",      "main article title"),
+        ("article",    "main article body"),
+        ("companies",  "company reports"),
+        ("indicators", "macro indicators"),
+        ("variations", "asset variations"),
+    ]:
+        if not report.get(field_name):
+            r.warnings.append(f"'{field_name}' ({label}) is missing or empty")
+
+    r.status = Status.WARN if r.warnings else Status.OK
+    return r
+
+
 # ── Report rendering ──────────────────────────────────────────────────────────
 
 def _fmt_age(age: int | None) -> str:
@@ -382,6 +459,7 @@ def _render_report(
     run_at: str,
     elapsed: float,
     smoke: dict | None,
+    live: LiveCheckResult | None = None,
 ) -> str:
     ok   = sum(1 for r in results if r.status == Status.OK)
     warn = sum(1 for r in results if r.status == Status.WARN)
@@ -445,6 +523,21 @@ def _render_report(
                 lines.append(f"- **Still null (check scrapers + Gemini fill):** {smoke['still_null']}")
         lines.append("")
 
+    if live is not None:
+        icon = _ICON[live.status]
+        lines += [f"## Live Server Check (--live)", ""]
+        if live.error_msg:
+            lines += [f"{icon} **{live.error_msg}**", ""]
+        else:
+            age_str = f"{live.age_days}d ago" if live.age_days else "—"
+            lines += [
+                f"{icon} `{PROD_URL}`",
+                f"- **Report date:** {live.report_date} ({age_str})",
+            ]
+            for w in live.warnings:
+                lines.append(f"- ⚠️  {w}")
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -464,6 +557,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Health check for The Market Ledger scrapers.")
     parser.add_argument("--full", action="store_true",
                         help="Also run macro pipeline smoke test (costs a Gemini API call).")
+    parser.add_argument("--live", action="store_true",
+                        help="Also check the live production server for freshness and completeness.")
     parser.add_argument("--category", choices=CATEGORIES,
                         help="Run only one category.")
     args = parser.parse_args()
@@ -512,6 +607,20 @@ def main() -> None:
                 print(f"   Still null: {smoke['still_null']}")
         print()
 
+    live: LiveCheckResult | None = None
+    if args.live:
+        print("── Live Server ──────────────────────────────────────────")
+        live = check_live_server()
+        icon = _ICON[live.status]
+        if live.error_msg:
+            print(f"  {icon}  {live.error_msg}")
+        else:
+            age_str = f"{live.age_days}d ago" if live.age_days is not None else "—"
+            print(f"  {icon}  server up  |  report: {live.report_date} ({age_str})")
+            for w in live.warnings:
+                print(f"       ⚠️   {w}")
+        print()
+
     elapsed = time.perf_counter() - t0
     ok   = sum(1 for r in all_results if r.status == Status.OK)
     warn = sum(1 for r in all_results if r.status == Status.WARN)
@@ -522,10 +631,11 @@ def main() -> None:
     OUTPUT_DIR.mkdir(exist_ok=True)
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     out_path = OUTPUT_DIR / f"health_{date_str}.md"
-    out_path.write_text(_render_report(all_results, run_at, elapsed, smoke))
+    out_path.write_text(_render_report(all_results, run_at, elapsed, smoke, live))
     print(f"  Report → {out_path.relative_to(ROOT)}")
 
-    if fail > 0:
+    live_fail = live is not None and live.status == Status.FAIL
+    if fail > 0 or live_fail:
         sys.exit(1)
 
 

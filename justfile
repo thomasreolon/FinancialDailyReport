@@ -19,6 +19,18 @@ health-full:
 health-cat category:
     uv run python scripts/health_check.py --category {{category}}
 
+# Health check + live production server check (freshness + section completeness)
+health-live:
+    uv run python scripts/health_check.py --live
+
+# ── Docker image verification ─────────────────────────────────────────────────
+
+# Build the report-server image locally and verify all imports load
+check-server-image:
+    docker build --target report-server -t report-server-local . \
+      && docker run --rm report-server-local uv run python -c \
+           "from report_server.main import app; print('✓ report-server imports OK')"
+
 # ── Local dev ──────────────────────────────────────────────────────────────────
 
 # Start the report server locally (http://localhost:8000)
