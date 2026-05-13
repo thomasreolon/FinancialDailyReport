@@ -8,6 +8,9 @@ build/
 
 # Env
 .env
+*-key.json
+*-service-account.json
+*-credentials.json
 
 # Pytest
 .pytest_cache/

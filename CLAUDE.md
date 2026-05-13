@@ -10,32 +10,31 @@ A daily financial intelligence pipeline that:
 
 ## Your weekly task
 
-Run the health check, read the output, fix any broken scrapers, then push to deploy.
+1. Run the health check (scrapers + live server):
+   ```bash
+   just health-live          # scraper check + live production check
+   just health-full          # add macro pipeline smoke test (costs ~1 Gemini call)
+   just health-cat indicator # single category when you already know the problem
+   ```
 
+2. If the live server shows a stale or incomplete report, check the last job run's logs:
+   ```bash
+   just logs-job             # last 24h of Cloud Run job output, chronological
+   just logs-server          # last 24h of server request/error logs
+   ```
+
+3. Fix broken scrapers, push to deploy (`git push` triggers GitHub Actions automatically).
+
+The health report is written to `output/health_YYYY-MM-DD.md`. Exit code 1 means at least one scraper FAILed or the live server is unreachable.
+
+**Available health check flags** (can be combined):
 ```bash
-# Standard run — all scrapers, ~5 minutes
-python scripts/health_check.py
-
-# With pipeline smoke test — also runs macro_indicators end-to-end (costs ~1 Gemini API call)
-python scripts/health_check.py --full
-
-# With live production server check — hits the Cloud Run URL, checks report freshness
-# (warns if latest report is >3 days old) and section completeness (title, article,
-# companies, indicators, variations). Exit code 1 if server is unreachable.
-python scripts/health_check.py --live
-
-# Flags can be combined
-python scripts/health_check.py --full --live
-
-# Single category if you already know where the problem is
-python scripts/health_check.py --category indicator
-python scripts/health_check.py --category news
-python scripts/health_check.py --category screener
-python scripts/health_check.py --category stock
-python scripts/health_check.py --category technical
+python scripts/health_check.py                       # all scrapers (~5 min)
+python scripts/health_check.py --live                # + live server freshness/completeness check
+python scripts/health_check.py --full                # + macro pipeline smoke test
+python scripts/health_check.py --full --live         # everything
+python scripts/health_check.py --category indicator  # single category
 ```
-
-The report is written to `output/health_YYYY-MM-DD.md`. Exit code 1 means at least one scraper FAILed or the live server is unreachable.
 
 ---
 

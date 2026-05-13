@@ -172,6 +172,28 @@ deploy-job:
 # Build and deploy server + job
 deploy: deploy-server deploy-job
 
+# ── GCP Logs ──────────────────────────────────────────────────────────────────
+
+# Stream stdout/stderr from the last report-job execution (last 24h, chronological)
+logs-job:
+    gcloud logging read \
+      'resource.type="cloud_run_job" AND resource.labels.job_name="report-job" AND logName=~"stdout|stderr"' \
+      --project={{PROJECT}} \
+      --limit=500 \
+      --freshness=1d \
+      --format='table(timestamp.date("%H:%M:%S"):label=TIME, textPayload:label=LOG)' \
+      --order=asc
+
+# Show report-server logs: HTTP requests + app stdout/stderr (last 24h)
+logs-server:
+    gcloud logging read \
+      'resource.type="cloud_run_revision" AND resource.labels.service_name="report-server"' \
+      --project={{PROJECT}} \
+      --limit=200 \
+      --freshness=1d \
+      --format='table(timestamp.date("%H:%M:%S"):label=TIME, httpRequest.status:label=STATUS, httpRequest.requestMethod:label=METHOD, httpRequest.requestUrl.basename():label=PATH, textPayload:label=LOG)' \
+      --order=asc
+
 # ── Manual triggers ────────────────────────────────────────────────────────────
 
 # Trigger the Cloud Run job immediately and tail its logs
