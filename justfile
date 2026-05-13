@@ -122,7 +122,7 @@ deploy-job:
         --cpu=2
         --max-retries=0
         --task-timeout=60m
-        --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,GEMINI_API_KEY_FREE=GEMINI_API_KEY_FREE:latest,SCRAPEDO_API_KEY=SCRAPEDO_API_KEY:latest"
+        --set-secrets="GEMINI_API_KEY=GEMINI_API_KEY:latest,GEMINI_API_KEY_FREE=GEMINI_API_KEY_FREE:latest,SCRAPEDO_API_KEY=SCRAPEDO_API_KEY:latest,FRED_API_KEY=FRED_API_KEY:latest"
         --project={{PROJECT}}
     )
 
