@@ -18,7 +18,14 @@ from pydantic import BaseModel, Field
 
 from src.scrapers.analyst.anachart import AnaChartResult, scrape_anachart
 from src.scrapers.analyst.marketbeat import MarketBeatForecastResult, scrape_marketbeat_forecast
-from src.scrapers.screener.investing import scrape_mid_cap_losers
+from src.scrapers.screener.investing import (
+    scrape_large_cap_garp,
+    scrape_mega_cap_losers,
+    scrape_mid_cap_analyst_picks,
+    scrape_mid_cap_losers,
+    scrape_mid_cap_quality,
+    scrape_small_cap_losers,
+)
 from src.scrapers.screener.marketbeat_golden_cross import scrape_golden_cross
 from src.scrapers.screener.portfoliopilot import scrape_portfoliopilot
 from src.scrapers.screener.yahoo_trending import scrape_yahoo_trending
@@ -62,10 +69,40 @@ def _load_tickers() -> dict[str, list[str]]:
             tickers.setdefault(s, []).append(source)
 
     try:
-        for row in scrape_mid_cap_losers(limit=30).rows:
+        for row in scrape_small_cap_losers(limit=15).rows:
+            add(row.ticker, "small_cap_losers")
+    except Exception as e:
+        print(f"  [screener] small_cap_losers failed: {e}")
+
+    try:
+        for row in scrape_mid_cap_losers(limit=15).rows:
             add(row.ticker, "mid_cap_losers")
     except Exception as e:
         print(f"  [screener] mid_cap_losers failed: {e}")
+
+    try:
+        for row in scrape_mega_cap_losers(limit=15).rows:
+            add(row.ticker, "mega_cap_losers")
+    except Exception as e:
+        print(f"  [screener] mega_cap_losers failed: {e}")
+
+    try:
+        for row in scrape_mid_cap_analyst_picks(limit=15).rows:
+            add(row.ticker, "mid_cap_analyst_picks")
+    except Exception as e:
+        print(f"  [screener] mid_cap_analyst_picks failed: {e}")
+
+    try:
+        for row in scrape_large_cap_garp(limit=15).rows:
+            add(row.ticker, "large_cap_garp")
+    except Exception as e:
+        print(f"  [screener] large_cap_garp failed: {e}")
+
+    try:
+        for row in scrape_mid_cap_quality(limit=15).rows:
+            add(row.ticker, "mid_cap_quality")
+    except Exception as e:
+        print(f"  [screener] mid_cap_quality failed: {e}")
 
     try:
         for q in scrape_yahoo_trending(count=25).quotes:

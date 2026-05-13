@@ -1,5 +1,5 @@
 """
-Mid-cap US stocks sorted by worst daily % change — investing.com screener.
+US stocks sorted by worst daily % change — investing.com screener, by cap tier.
 
 Uses the ssid URL parameter to trigger server-side filtered rendering.
 The ssid encodes the filter (market cap range) and sort as base64 JSON.
@@ -18,8 +18,12 @@ _SCREENER_URL = "https://www.investing.com/stock-screener"
 _NEXT_DATA_RE = re.compile(
     r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', re.S
 )
-_MID_CAP_LOW = 2_000_000_000
-_MID_CAP_HIGH = 10_000_000_000
+_SMALL_CAP_LOW  =       300_000_000   # $300M
+_SMALL_CAP_HIGH =     2_000_000_000   # $2B
+_MID_CAP_LOW    =     2_000_000_000   # $2B
+_MID_CAP_HIGH   =    10_000_000_000   # $10B
+_MEGA_CAP_LOW   =    10_000_000_000   # $10B
+_MEGA_CAP_HIGH  =   200_000_000_000  # $10T — practical ceiling
 
 
 class ScreenerRow(BaseModel):
@@ -46,34 +50,199 @@ class ScreenerResult(BaseModel):
     total_in_universe: int
 
 
-class MidCapLosersNode(ScrapingNode):
-    def __init__(
-        self,
-        limit: int = 30,
-        market: str = "US",
-        mktcap_low: float = _MID_CAP_LOW,
-        mktcap_high: float = _MID_CAP_HIGH,
-    ):
+class SmallCapLosersNode(ScrapingNode):
+    def __init__(self, limit: int = 15, market: str = "US"):
         self.limit = limit
         self.market = market
-        self.mktcap_low = mktcap_low
-        self.mktcap_high = mktcap_high
 
     def scrape(self) -> ScreenerResult | None:
-        return scrape_mid_cap_losers(
-            limit=self.limit,
-            market=self.market,
-            mktcap_low=self.mktcap_low,
-            mktcap_high=self.mktcap_high,
-        )
+        return scrape_small_cap_losers(limit=self.limit, market=self.market)
 
 
-def scrape_mid_cap_losers(
-    limit: int = 30,
-    market: str = "US",
-    mktcap_low: float = _MID_CAP_LOW,
-    mktcap_high: float = _MID_CAP_HIGH,
-    timeout: int = 30,
+class MidCapLosersNode(ScrapingNode):
+    def __init__(self, limit: int = 15, market: str = "US"):
+        self.limit = limit
+        self.market = market
+
+    def scrape(self) -> ScreenerResult | None:
+        return scrape_mid_cap_losers(limit=self.limit, market=self.market)
+
+
+class MegaCapLosersNode(ScrapingNode):
+    def __init__(self, limit: int = 15, market: str = "US"):
+        self.limit = limit
+        self.market = market
+
+    def scrape(self) -> ScreenerResult | None:
+        return scrape_mega_cap_losers(limit=self.limit, market=self.market)
+
+
+class LargeCapGARPNode(ScrapingNode):
+    def __init__(self, limit: int = 15, market: str = "US"):
+        self.limit = limit
+        self.market = market
+
+    def scrape(self) -> ScreenerResult | None:
+        return scrape_large_cap_garp(limit=self.limit, market=self.market)
+
+
+class MidCapQualityNode(ScrapingNode):
+    def __init__(self, limit: int = 15, market: str = "US"):
+        self.limit = limit
+        self.market = market
+
+    def scrape(self) -> ScreenerResult | None:
+        return scrape_mid_cap_quality(limit=self.limit, market=self.market)
+
+
+class MidCapAnalystPicksNode(ScrapingNode):
+    def __init__(self, limit: int = 15, market: str = "US"):
+        self.limit = limit
+        self.market = market
+
+    def scrape(self) -> ScreenerResult | None:
+        return scrape_mid_cap_analyst_picks(limit=self.limit, market=self.market)
+
+
+def scrape_small_cap_losers(limit: int = 15, market: str = "US", timeout: int = 30) -> ScreenerResult:
+    return _scrape_losers(_SMALL_CAP_LOW, _SMALL_CAP_HIGH, limit, market, timeout)
+
+
+def scrape_mid_cap_losers(limit: int = 15, market: str = "US", timeout: int = 30) -> ScreenerResult:
+    return _scrape_losers(_MID_CAP_LOW, _MID_CAP_HIGH, limit, market, timeout)
+
+
+def scrape_mega_cap_losers(limit: int = 15, market: str = "US", timeout: int = 30) -> ScreenerResult:
+    return _scrape_losers(_MEGA_CAP_LOW, _MEGA_CAP_HIGH, limit, market, timeout)
+
+
+def scrape_large_cap_garp(limit: int = 15, market: str = "US", timeout: int = 30) -> ScreenerResult:
+    """Large-cap ($10B–$200B) GARP: NI > 0, EBITDA > 0, PEG favorable (0–1), sorted by market cap desc."""
+    obj = {
+        "connective": "ALL",
+        "filters.0.currency": "USD",
+        "filters.0.gt.inclusive": False,
+        "filters.0.gt.scale": 1_000_000_000,
+        "filters.0.gt.value": 10,
+        "filters.0.lt.inclusive": False,
+        "filters.0.lt.scale": 1_000_000_000,
+        "filters.0.lt.value": 200,
+        "filters.0.metric": "marketcap_adj_latest",
+        "filters.1.currency": "USD",
+        "filters.1.gt.inclusive": True,
+        "filters.1.gt.scale": 1,
+        "filters.1.gt.value": 0,
+        "filters.1.metric": "ebitda",
+        "filters.2.currency": "USD",
+        "filters.2.gt.inclusive": True,
+        "filters.2.gt.scale": 1,
+        "filters.2.gt.value": 0,
+        "filters.2.metric": "ni",
+        "filters.3.gt.inclusive": False,
+        "filters.3.gt.scale": 1,
+        "filters.3.gt.value": 0,
+        "filters.3.lt.inclusive": False,
+        "filters.3.lt.scale": 1,
+        "filters.3.lt.value": 1,
+        "filters.3.metric": "peg_ltm",
+        "limit": min(limit, 30),
+        "prefilters.market": market,
+        "prefilters.primaryOnly": True,
+        "sort.direction": "DESC",
+        "sort.metric": "marketcap_adj_latest",
+    }
+    return _scrape_losers_flat(obj, limit, timeout)
+
+
+def scrape_mid_cap_quality(limit: int = 15, market: str = "US", timeout: int = 30) -> ScreenerResult:
+    """Mid-cap quality compounder: EBITDA/NI/EBIT > 0, PEG favorable, EV/EBITDA low (1–10)."""
+    obj = {
+        "connective": "ALL",
+        "filters.0.currency": "USD",
+        "filters.0.gt.inclusive": False,
+        "filters.0.gt.scale": 1_000_000_000,
+        "filters.0.gt.value": 2,
+        "filters.0.lt.inclusive": False,
+        "filters.0.lt.scale": 1_000_000_000,
+        "filters.0.lt.value": 10,
+        "filters.0.metric": "marketcap_adj_latest",
+        "filters.1.currency": "USD",
+        "filters.1.gt.inclusive": True,
+        "filters.1.gt.scale": 1,
+        "filters.1.gt.value": 0,
+        "filters.1.metric": "ebitda",
+        "filters.2.currency": "USD",
+        "filters.2.gt.inclusive": True,
+        "filters.2.gt.scale": 1,
+        "filters.2.gt.value": 0,
+        "filters.2.metric": "ni",
+        "filters.3.currency": "USD",
+        "filters.3.gt.inclusive": True,
+        "filters.3.gt.scale": 1,
+        "filters.3.gt.value": 0,
+        "filters.3.metric": "ebit",
+        "filters.4.gt.inclusive": False,
+        "filters.4.gt.scale": 1,
+        "filters.4.gt.value": 0,
+        "filters.4.lt.inclusive": False,
+        "filters.4.lt.scale": 1,
+        "filters.4.lt.value": 1,
+        "filters.4.metric": "peg_ltm",
+        "filters.5.gt.inclusive": True,
+        "filters.5.gt.scale": 1,
+        "filters.5.gt.value": 1,
+        "filters.5.lt.inclusive": True,
+        "filters.5.lt.scale": 1,
+        "filters.5.lt.value": 10,
+        "filters.5.metric": "ev_to_ebitda_ltm",
+        "limit": min(limit, 30),
+        "prefilters.market": market,
+        "prefilters.primaryOnly": True,
+        "sort.direction": "DESC",
+        "sort.metric": "marketcap_adj_latest",
+    }
+    return _scrape_losers_flat(obj, limit, timeout)
+
+
+def scrape_mid_cap_analyst_picks(limit: int = 15, market: str = "US", timeout: int = 30) -> ScreenerResult:
+    """Mid-cap profitable stocks (EBITDA > 0) with analyst upside 18–50%, sorted by market cap desc."""
+    obj = {
+        "connective": "ALL",
+        "filters.0.gt.inclusive": True,
+        "filters.0.gt.scale": 1,
+        "filters.0.gt.value": 0.18,
+        "filters.0.lt.inclusive": True,
+        "filters.0.lt.scale": 1,
+        "filters.0.lt.value": 0.5,
+        "filters.0.metric": "analyst_target_upside",
+        "filters.1.currency": "USD",
+        "filters.1.gt.inclusive": False,
+        "filters.1.gt.scale": 1_000_000_000,
+        "filters.1.gt.value": 2,
+        "filters.1.lt.inclusive": False,
+        "filters.1.lt.scale": 1_000_000_000,
+        "filters.1.lt.value": 10,
+        "filters.1.metric": "marketcap_adj_latest",
+        "filters.2.currency": "USD",
+        "filters.2.gt.inclusive": True,
+        "filters.2.gt.scale": 1,
+        "filters.2.gt.value": 0,
+        "filters.2.metric": "ebitda",
+        "limit": min(limit, 30),
+        "prefilters.market": market,
+        "prefilters.primaryOnly": True,
+        "sort.direction": "DESC",
+        "sort.metric": "marketcap_adj_latest",
+    }
+    return _scrape_losers_flat(obj, limit, timeout)
+
+
+def _scrape_losers(
+    mktcap_low: float,
+    mktcap_high: float,
+    limit: int,
+    market: str,
+    timeout: int,
 ) -> ScreenerResult:
     ssid = _make_ssid(market, mktcap_low, mktcap_high, page_size=min(limit, 30))
     url = f"{_SCREENER_URL}?ssid={ssid}"
@@ -86,6 +255,27 @@ def scrape_mid_cap_losers(
         rows=[_parse_row(r, cols) for r in rows[:limit]],
         total_in_universe=total,
     )
+
+
+def _scrape_losers_flat(obj: dict, limit: int, timeout: int) -> ScreenerResult:
+    ssid = _make_ssid_flat(obj)
+    url = f"{_SCREENER_URL}?ssid={ssid}"
+    html = fetch_html(url, timeout=timeout)
+    res = _extract_results(html)
+    cols = [c["metric"] for c in res.get("columns", [])]
+    rows = res.get("rows", [])
+    total = res.get("page", {}).get("totalItems", 0)
+    return ScreenerResult(
+        rows=[_parse_row(r, cols) for r in rows[:limit]],
+        total_in_universe=total,
+    )
+
+
+def _make_ssid_flat(obj: dict) -> str:
+    """Build a v2 ssid from a flat ordered key→value dict (multi-filter format)."""
+    ssid_obj = {"keys": list(obj.keys()), "values": list(obj.values())}
+    b64 = base64.b64encode(json.dumps(ssid_obj, separators=(",", ":")).encode()).decode()
+    return f"v2${b64}"
 
 
 def _make_ssid(

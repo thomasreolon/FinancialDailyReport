@@ -171,7 +171,14 @@ def _build_specs() -> list[Spec]:
     from src.scrapers.news.stonex import scrape_stonex
     from src.scrapers.news.tikr_blog import scrape_tikr_blog
     from src.scrapers.news.yt_scraper import YTScraper
-    from src.scrapers.screener.investing import scrape_mid_cap_losers
+    from src.scrapers.screener.investing import (
+        scrape_large_cap_garp,
+        scrape_mega_cap_losers,
+        scrape_mid_cap_analyst_picks,
+        scrape_mid_cap_losers,
+        scrape_mid_cap_quality,
+        scrape_small_cap_losers,
+    )
     from src.scrapers.screener.yahoo_trending import scrape_yahoo_trending
     from src.scrapers.screener.portfoliopilot import scrape_portfoliopilot
     from src.scrapers.screener.marketbeat_golden_cross import scrape_golden_cross
@@ -309,7 +316,27 @@ def _build_specs() -> list[Spec]:
              none_ok=True, stale_after_days=999),
 
         # ── Screeners ────────────────────────────────────────────────────────
+        Spec("small_cap_losers", "screener", lambda: scrape_small_cap_losers(limit=5),
+             lambda r: (f"{len(r.rows)} rows (of {r.total_in_universe})", "—",
+                        _w(len(r.rows) == 0, "no rows — screener page may have changed")),
+             stale_after_days=999),
         Spec("mid_cap_losers", "screener", lambda: scrape_mid_cap_losers(limit=5),
+             lambda r: (f"{len(r.rows)} rows (of {r.total_in_universe})", "—",
+                        _w(len(r.rows) == 0, "no rows — screener page may have changed")),
+             stale_after_days=999),
+        Spec("mega_cap_losers", "screener", lambda: scrape_mega_cap_losers(limit=5),
+             lambda r: (f"{len(r.rows)} rows (of {r.total_in_universe})", "—",
+                        _w(len(r.rows) == 0, "no rows — screener page may have changed")),
+             stale_after_days=999),
+        Spec("mid_cap_analyst_picks", "screener", lambda: scrape_mid_cap_analyst_picks(limit=5),
+             lambda r: (f"{len(r.rows)} rows (of {r.total_in_universe})", "—",
+                        _w(len(r.rows) == 0, "no rows — screener page may have changed")),
+             stale_after_days=999),
+        Spec("large_cap_garp", "screener", lambda: scrape_large_cap_garp(limit=5),
+             lambda r: (f"{len(r.rows)} rows (of {r.total_in_universe})", "—",
+                        _w(len(r.rows) == 0, "no rows — screener page may have changed")),
+             stale_after_days=999),
+        Spec("mid_cap_quality", "screener", lambda: scrape_mid_cap_quality(limit=5),
              lambda r: (f"{len(r.rows)} rows (of {r.total_in_universe})", "—",
                         _w(len(r.rows) == 0, "no rows — screener page may have changed")),
              stale_after_days=999),
