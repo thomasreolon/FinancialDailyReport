@@ -71,8 +71,12 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
     screened = _cached("screened_stocks", lambda: _run_screened(verbose=verbose), force, verbose)
 
     _log("Fetching market overview (variations)...")
-    from src.scrapers.technical.market_overview import scrape_market_overview
-    overview = _cached("market_overview", scrape_market_overview, force, verbose)
+    from src.scrapers.technical.market_overview import MarketOverviewResult, scrape_market_overview
+    try:
+        overview = _cached("market_overview", scrape_market_overview, force, verbose)
+    except Exception as exc:
+        _log(f"market_overview failed ({exc}) — variations will be empty")
+        overview = MarketOverviewResult(groups=[])
 
     # ── select top 3 companies ─────────────────────────────────────────────────
     top3 = select_top_companies(screened, n=3)

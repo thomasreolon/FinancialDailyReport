@@ -1,8 +1,8 @@
 """
 Screened-stocks pipeline.
 
-Reads ticker lists from the pre-scraped screener outputs in output/screener/,
-deduplicates across all screeners, then enriches each ticker with:
+Runs all screener scrapers live, deduplicates tickers across screeners, then
+enriches each ticker with:
   - Yahoo Finance comprehensive profile (price, financials, estimates, etc.)
   - AnaChart analyst ratings
   - MarketBeat consensus forecast (None when exchange is unknown or scraping fails)
@@ -14,15 +14,15 @@ Usage:
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from pydantic import BaseModel, Field
 
 from src.scrapers.analyst.anachart import AnaChartResult, scrape_anachart
 from src.scrapers.analyst.marketbeat import MarketBeatForecastResult, scrape_marketbeat_forecast
+from src.scrapers.screener.investing import scrape_mid_cap_losers
+from src.scrapers.screener.marketbeat_golden_cross import scrape_golden_cross
+from src.scrapers.screener.portfoliopilot import scrape_portfoliopilot
+from src.scrapers.screener.yahoo_trending import scrape_yahoo_trending
 from src.scrapers.stock.yahoo import YahooProfile, scrape_yahoo_profile
-
-_SCREENER_DIR = Path(__file__).parent.parent.parent / "output" / "screener"
 
 # Yahoo Finance exchange name → MarketBeat URL segment (None = skip MarketBeat)
 _EXCHANGE_MAP: dict[str, str | None] = {
@@ -53,7 +53,7 @@ class PipelineResult(BaseModel):
 
 
 def _load_tickers() -> dict[str, list[str]]:
-    """Read all screener JSON files and return {ticker: [source, ...]}."""
+    """Run all screener scrapers live and return {ticker: [source, ...]}."""
     tickers: dict[str, list[str]] = {}
 
     def add(symbol: str, source: str) -> None:
@@ -61,28 +61,29 @@ def _load_tickers() -> dict[str, list[str]]:
         if s and "-" not in s and "^" not in s:
             tickers.setdefault(s, []).append(source)
 
-    def load(filename: str) -> dict:
-        path = _SCREENER_DIR / filename
-        if not path.exists():
-            print(f"  [screener] {filename} not found, skipping")
-            return {}
-        return json.loads(path.read_text())
+    try:
+        for row in scrape_mid_cap_losers(limit=30).rows:
+            add(row.ticker, "mid_cap_losers")
+    except Exception as e:
+        print(f"  [screener] mid_cap_losers failed: {e}")
 
-    data = load("screener_mid_cap_losers.json")
-    for row in data.get("rows", []):
-        add(row["ticker"], "mid_cap_losers")
+    try:
+        for q in scrape_yahoo_trending(count=25).quotes:
+            add(q.symbol, "yahoo_trending")
+    except Exception as e:
+        print(f"  [screener] yahoo_trending failed: {e}")
 
-    data = load("screener_yahoo_trending.json")
-    for q in data.get("quotes", []):
-        add(q["symbol"], "yahoo_trending")
+    try:
+        for s in scrape_portfoliopilot().stocks:
+            add(s.ticker, "portfoliopilot")
+    except Exception as e:
+        print(f"  [screener] portfoliopilot failed: {e}")
 
-    data = load("screener_portfoliopilot.json")
-    for s in data.get("stocks", []):
-        add(s["ticker"], "portfoliopilot")
-
-    data = load("screener_golden_cross.json")
-    for s in data.get("stocks", []):
-        add(s["symbol"], "golden_cross")
+    try:
+        for s in scrape_golden_cross().stocks:
+            add(s.symbol, "golden_cross")
+    except Exception as e:
+        print(f"  [screener] golden_cross failed: {e}")
 
     return tickers
 
