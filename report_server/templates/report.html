@@ -533,8 +533,8 @@
                         </div>
                         <div class="price-row">
                             <div class="price-stack">
-                                <span class="price-current" id="live-{{ c.ticker }}">$—</span>
-                                <span class="price-ref">rep. ${{ c.price | fmt_price }} <span class="price-delta" id="delta-{{ c.ticker }}"></span></span>
+                                <span class="price-current">${{ c.price | fmt_price }}</span>
+                                <span class="price-ref"><span id="live-{{ c.ticker }}">$—</span> <span class="price-delta" id="delta-{{ c.ticker }}"></span></span>
                             </div>
                             <span class="price-meta">P/E {{ "%.1f"|format(c.pe) if c.pe else "N/A" }}<br>P/B {{ "%.2f"|format(c.pb) if c.pb else "N/A" }}</span>
                         </div>
@@ -685,7 +685,7 @@
     async function fetchLivePrices() {
         if (!_tickers.length) return;
         const symbols = _tickers.join(',');
-        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&fields=regularMarketPrice`;
+        const url = `/api/quote?symbols=${encodeURIComponent(symbols)}`;
         try {
             const res = await fetch(url);
             if (!res.ok) return;

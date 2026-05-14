@@ -16,6 +16,7 @@ Start:
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from pathlib import Path
 
@@ -26,6 +27,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from report_server import gcs, limiter
+from report_server.yahoo_quotes import fetch_spark_prices, parse_symbols_param
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -146,6 +148,20 @@ async def api_latest() -> dict:
     if not report:
         raise HTTPException(status_code=404, detail="No report available.")
     return report
+
+
+@app.get("/api/quote")
+async def api_quote(symbols: str = "") -> dict:
+    """
+    Same-origin proxy for selected-company live prices (browser cannot call Yahoo
+    directly: CORS + quote API 401). Response shape matches the old client-side
+    Yahoo /v7/finance/quote JSON for minimal template changes.
+    """
+    parsed = parse_symbols_param(symbols)
+    if not parsed:
+        return {"quoteResponse": {"result": [], "error": None}}
+    rows = await asyncio.to_thread(fetch_spark_prices, parsed)
+    return {"quoteResponse": {"result": rows, "error": None}}
 
 
 @app.get("/api/{date_str}")
