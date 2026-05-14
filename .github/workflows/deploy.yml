@@ -10,29 +10,67 @@ env:
   REGISTRY: europe-west1-docker.pkg.dev/the-mind-financial-reports/apps
 
 jobs:
-  deploy:
-    name: Build & Deploy
+  # Which images need a rebuild (shared = pyproject / lock / Dockerfile → both).
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_server: ${{ steps.flags.outputs.deploy_server }}
+      deploy_job: ${{ steps.flags.outputs.deploy_job }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            server:
+              - 'report_server/**'
+            job:
+              - 'src/**'
+            shared:
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'Dockerfile'
+
+      - name: Set deploy flags
+        id: flags
+        env:
+          CH_SERVER: ${{ steps.filter.outputs.server }}
+          CH_JOB: ${{ steps.filter.outputs.job }}
+          CH_SHARED: ${{ steps.filter.outputs.shared }}
+        run: |
+          deploy_server=false
+          deploy_job=false
+          if [[ "$CH_SERVER" == "true" || "$CH_SHARED" == "true" ]]; then deploy_server=true; fi
+          if [[ "$CH_JOB" == "true" || "$CH_SHARED" == "true" ]]; then deploy_job=true; fi
+          echo "deploy_server=$deploy_server" >> "$GITHUB_OUTPUT"
+          echo "deploy_job=$deploy_job" >> "$GITHUB_OUTPUT"
+          echo "→ deploy report-server: $deploy_server"
+          echo "→ deploy report-job:    $deploy_job"
+
+  deploy-server:
+    name: Cloud Run — report-server
+    needs: changes
+    if: needs.changes.outputs.deploy_server == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write  # required for Workload Identity Federation
-
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate to GCP
-        uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-
-      # ── report-server ──────────────────────────────────────────────────────────
 
       - name: Build & push report-server image
         run: |
@@ -62,7 +100,26 @@ jobs:
             --project=${{ env.PROJECT }} \
             --quiet
 
-      # ── report-job ─────────────────────────────────────────────────────────────
+  deploy-job:
+    name: Cloud Run Job — report-job
+    needs: changes
+    if: needs.changes.outputs.deploy_job == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       - name: Build & push report-job image
         run: |
