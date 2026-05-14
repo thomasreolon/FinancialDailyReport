@@ -4,6 +4,9 @@
 - Older dates: permanent @lru_cache for the process lifetime.
 - find_latest(): probes today → yesterday → up to 7 days → full scan.
 - list_dates(): TTL-cached list of all available dates, most-recent first.
+- shell_date_options(): up to five newest dates for the nav dropdown, with
+  fallback probing when list_blobs fails, and includes the current URL date
+  when it is outside that set.
 """
 from __future__ import annotations
 
@@ -49,6 +52,27 @@ def _load_permanent(blob_name: str) -> dict | None:
 
 def _blob_for(date_str: str) -> str:
     return f"{_PREFIX}/{date_str}.json"
+
+
+def _blob_exists(date_str: str) -> bool:
+    try:
+        from google.cloud import storage  # type: ignore
+        return bool(storage.Client().bucket(_BUCKET).blob(_blob_for(date_str)).exists())
+    except Exception:
+        return False
+
+
+def _probe_recent_dates(limit: int) -> list[str]:
+    """Newest-first dates under raw/ that exist, without listing the whole bucket."""
+    out: list[str] = []
+    today = date.today()
+    for delta in range(400):
+        if len(out) >= limit:
+            break
+        d = (today - timedelta(days=delta)).isoformat()
+        if _blob_exists(d):
+            out.append(d)
+    return out
 
 
 def load_report(date_str: str) -> dict | None:
@@ -112,3 +136,24 @@ def list_dates() -> list[str]:
     except Exception as exc:
         print(f"[warn] GCS list_dates failed: {exc}")
         return _dates_cache[1]
+
+
+def shell_date_options(current_date: str, *, recent_count: int = 5) -> list[str]:
+    """Dates for the shell `<select>`: up to `recent_count` newest reports.
+
+    If ``list_dates()`` is empty (e.g. list_blobs permission failure), falls back
+    to probing consecutive calendar days. If ``current_date`` is not among the
+    most recent, it is appended so the dropdown still matches the open report
+    (at most ``recent_count + 1`` options).
+    """
+    repo_dates = list_dates()
+    if repo_dates:
+        recent = repo_dates[:recent_count]
+    else:
+        recent = _probe_recent_dates(recent_count)
+    if not recent:
+        return [current_date]
+    if current_date in recent:
+        return recent
+    merged = sorted(set(recent) | {current_date}, reverse=True)
+    return merged[: recent_count + 1]

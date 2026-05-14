@@ -177,8 +177,8 @@ async def raw_report(request: Request, date_str: str) -> HTMLResponse:
 
 @app.get("/{date_str}", response_class=HTMLResponse)
 async def shell(request: Request, date_str: str) -> HTMLResponse:
-    dates = gcs.list_dates()
+    dates = gcs.shell_date_options(date_str)
     return templates.TemplateResponse(request, "shell.html", {
         "date_str": date_str,
-        "dates": dates or [date_str],
+        "dates": dates,
     })
