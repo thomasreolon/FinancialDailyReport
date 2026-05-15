@@ -14,6 +14,7 @@ _TARGET: list[tuple[str, str]] = [
     ("DBB",  "Industrial Metals"),
     ("DBA",  "Agricultural"),
     ("DBO",  "Oil"),
+    ("GLD",  "Gold"),
     ("FXE",  "EUR/USD"),
 ]
 

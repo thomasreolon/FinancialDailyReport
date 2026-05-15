@@ -121,6 +121,10 @@ def _pct_class(v: float | None) -> str:
     return "ink-up" if v >= 0 else "ink-down"
 
 
+def _sort_variations(lst: list) -> list:
+    return sorted(lst, key=lambda v: (v["periods"]["one_day"] is None, -(v["periods"]["one_day"] or 0)))
+
+
 templates.env.filters["fmt_pct"] = _fmt_pct
 templates.env.filters["fmt_price"] = _fmt_price
 templates.env.filters["fmt_large"] = _fmt_large
@@ -128,6 +132,7 @@ templates.env.filters["fmt_date"] = _fmt_date
 templates.env.filters["fmt_ratio"] = _fmt_ratio
 templates.env.filters["fmt_ind"] = _fmt_ind
 templates.env.filters["pct_class"] = _pct_class
+templates.env.filters["sort_variations"] = _sort_variations
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────

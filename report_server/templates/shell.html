@@ -113,6 +113,113 @@
             border: none;
             display: block;
         }
+
+        /* ── Nav disclaimer tag ───────────────────────────────────────────── */
+        .nav-disclaimer {
+            font-size: 0.62rem;
+            color: var(--nav-muted);
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+            font-style: italic;
+            opacity: 0.75;
+        }
+
+        /* ── Cookie banner ────────────────────────────────────────────────── */
+        #cookie-banner {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            background: #1e1c1a;
+            border-top: 1px solid var(--nav-border);
+            padding: 0.7rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.72rem;
+            color: var(--nav-muted);
+            z-index: 8000;
+        }
+
+        #cookie-banner p { flex: 1; line-height: 1.5; }
+
+        .cookie-btn {
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.7rem;
+            background: none;
+            border: 1px solid var(--nav-border);
+            border-radius: 2px;
+            color: var(--nav-text);
+            padding: 0.3rem 0.9rem;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .cookie-btn:hover {
+            background: var(--nav-hover);
+            border-color: rgba(232,228,217,0.4);
+        }
+
+        /* ── Disclaimer overlay ───────────────────────────────────────────── */
+        #disclaimer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.82);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .disclaimer-box {
+            background: #2b2826;
+            border: 1px solid rgba(232,228,217,0.2);
+            border-top: 3px solid var(--nav-accent);
+            padding: 2.25rem 2.5rem;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .disclaimer-title {
+            font-family: 'Cinzel', serif;
+            font-size: 0.9rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--nav-text);
+            margin-bottom: 1.25rem;
+        }
+
+        .disclaimer-body {
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.78rem;
+            line-height: 1.75;
+            color: var(--nav-muted);
+            margin-bottom: 1.75rem;
+        }
+
+        .disclaimer-body strong {
+            color: var(--nav-text);
+            font-weight: 700;
+        }
+
+        .disclaimer-accept {
+            display: block;
+            width: 100%;
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            background: none;
+            border: 1px solid rgba(232,228,217,0.3);
+            color: var(--nav-text);
+            padding: 0.65rem;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .disclaimer-accept:hover {
+            background: var(--nav-hover);
+            border-color: rgba(232,228,217,0.5);
+        }
     </style>
 </head>
 <body>
@@ -126,13 +233,57 @@
         {% endfor %}
     </select>
     <div class="nav-spacer"></div>
+    <span class="nav-disclaimer">Sole informational purposes — not financial advice</span>
+    <div class="nav-divider"></div>
     <button id="theme-btn" onclick="toggleTheme()" title="Toggle light / dark mode">☀</button>
 </nav>
 
 <iframe id="report-frame" src="/raw/{{ date_str }}" title="Market Ledger Report"></iframe>
 
+<!-- COOKIE BANNER -->
+<div id="cookie-banner">
+    <p>Usando questo sito accetti l'utilizzo dei <strong style="color:var(--nav-text)">cookie tecnici essenziali</strong> necessari al funzionamento del servizio (preferenze tema, consenso). Nessun dato di profilazione o tracciamento.</p>
+    <button class="cookie-btn" onclick="acceptCookies()">Ho capito</button>
+</div>
+
+<!-- DISCLAIMER POPUP -->
+<div id="disclaimer-overlay">
+    <div class="disclaimer-box">
+        <div class="disclaimer-title">Disclaimer</div>
+        <div class="disclaimer-body">
+            <strong>The Market Ledger is for informational and educational purposes only.</strong><br><br>
+            Nothing published on this site constitutes financial, investment, legal, or tax advice,
+            nor a solicitation or recommendation to buy or sell any security or financial instrument.<br><br>
+            Past performance is not indicative of future results. Markets are volatile and capital is at risk.
+            Always consult a qualified financial professional before making any investment decision.
+        </div>
+        <button class="disclaimer-accept" onclick="acceptDisclaimer()">I understand — continue to The Market Ledger</button>
+    </div>
+</div>
+
 <script>
-    const THEME_KEY = 'market-ledger-theme';
+    const THEME_KEY      = 'market-ledger-theme';
+    const COOKIE_KEY     = 'ml-cookies-ok';
+    const DISCLAIMER_KEY = 'ml-disclaimer-ok';
+
+    // ── Cookie consent ─────────────────────────────────────────────────────
+    if (localStorage.getItem(COOKIE_KEY)) {
+        document.getElementById('cookie-banner').style.display = 'none';
+    }
+    function acceptCookies() {
+        localStorage.setItem(COOKIE_KEY, '1');
+        document.getElementById('cookie-banner').style.display = 'none';
+    }
+
+    // ── Disclaimer ─────────────────────────────────────────────────────────
+    if (localStorage.getItem(DISCLAIMER_KEY)) {
+        document.getElementById('disclaimer-overlay').style.display = 'none';
+    }
+    function acceptDisclaimer() {
+        localStorage.setItem(DISCLAIMER_KEY, '1');
+        document.getElementById('disclaimer-overlay').style.display = 'none';
+    }
+
     let currentTheme = localStorage.getItem(THEME_KEY) || 'light';
 
     function applyTheme(theme, broadcast) {
