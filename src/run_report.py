@@ -7,7 +7,10 @@ The uploaded JSON contains all pipeline outputs in a single document:
         "macro_indicators": MacroIndicatorsResult,
         "screened_stocks":  PipelineResult (screened companies + enrichment),
         "news":             NewsPipelineResult,
-        "market_overview":  MarketOverviewResult
+        "market_overview":  MarketOverviewResult,
+        "macro_snapshot":   MacroSnapshot (session-count macro returns + levels
+                            for the ff_analysis model — additive, not used by
+                            any current ee_mind consumer)
     }
 
 GCS paths written:
@@ -54,6 +57,7 @@ def _build_combined(bundle) -> dict:
         "screened_stocks": _to_dict(bundle.screened),
         "news": _to_dict(bundle.news),
         "market_overview": _to_dict(bundle.overview),
+        "macro_snapshot": _to_dict(bundle.macro_snapshot),
     }
 
 

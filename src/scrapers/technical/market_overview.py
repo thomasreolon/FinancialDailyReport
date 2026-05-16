@@ -62,6 +62,8 @@ GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
         ("DBB", "Industrial Metals"), ("GLD", "Gold"), ("SLV", "Silver"),
         ("PPLT", "Platinum"), ("DBA", "Agricultural"), ("DBO", "Oil"),
         ("UNG", "Natural Gas"), ("CORN", "Corn"), ("SOYB", "Soybeans"),
+        ("DBC", "Broad Commodities"), ("CPER", "Copper"),
+        ("LIT", "Lithium & Battery"), ("WEAT", "Wheat"),
     ]),
     ("Currencies", [
         ("UUP", "US Dollar"), ("FXB", "British Pound"),
@@ -84,6 +86,13 @@ class ETFPerformance(BaseModel):
     ytd_pct: float | None
     one_year_pct: float | None
     three_year_pct: float | None
+    # Session-count returns (5/21/126/378 trading days back), in percent.
+    # Used by the ff_analysis model which was trained on bar-count windows.
+    # All None when price history is too short.
+    ret_5b_pct:   float | None = None
+    ret_21b_pct:  float | None = None
+    ret_126b_pct: float | None = None
+    ret_378b_pct: float | None = None
 
 
 class ETFGroup(BaseModel):
@@ -142,6 +151,13 @@ def _compute(meta: dict, timestamps: list[int], closes: list[float | None]) -> E
     one_year    = _pct(current, _price_at(valid, today - timedelta(days=365)))
     three_year  = _pct(current, _price_at(valid, today - timedelta(days=3 * 365)))
 
+    # Session-count returns (trading-day windows) for the ff_analysis model.
+    def _bar_ret(n: int) -> float | None:
+        if len(valid) > n:
+            past = valid[-1 - n][1]
+            return _pct(current, past)
+        return None
+
     return ETFPerformance(
         symbol=symbol,
         name=_NAME_MAP.get(symbol, symbol),
@@ -151,6 +167,10 @@ def _compute(meta: dict, timestamps: list[int], closes: list[float | None]) -> E
         ytd_pct=ytd,
         one_year_pct=one_year,
         three_year_pct=three_year,
+        ret_5b_pct=_bar_ret(5),
+        ret_21b_pct=_bar_ret(21),
+        ret_126b_pct=_bar_ret(126),
+        ret_378b_pct=_bar_ret(378),
     )
 
 

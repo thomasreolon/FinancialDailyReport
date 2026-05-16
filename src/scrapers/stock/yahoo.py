@@ -1,17 +1,25 @@
 """
-Yahoo Finance comprehensive stock profile — 3 API calls + 2 DOM-scraped pages.
+Yahoo Finance comprehensive stock profile — 3 API calls + 2 DOM-scraped pages
++ 1 chart call (no auth) for 3y of daily closes used for return/vol features.
 
 Call 1 (core):       price, assetProfile, summaryDetail, defaultKeyStatistics, financialData
 Call 2 (financials): incomeStatementHistory(+Quarterly)
 Call 3 (analysis):   earningsTrend, earningsHistory, recommendationTrend
 DOM /balance-sheet/: total assets, liabilities, equity, debt, working capital, etc.
 DOM /cash-flow/:     operating/investing/financing CF, capex, FCF, buybacks, etc.
+Chart /v8/finance/chart/SYMBOL: 3y of 1d closes (separate curl_cffi call,
+                     wrapped in try/except so price-history failure leaves the
+                     derived fields null but does not break the broader scrape).
 
 Balance sheet and cash flow use DOM scraping because Yahoo's quoteSummary API
 no longer returns populated fields for those modules.
 All DOM values are displayed in thousands — multiplied by 1000 in parsing.
 """
 
+import math
+from datetime import datetime, timezone
+
+from curl_cffi import requests as cf_requests
 from pydantic import BaseModel, Field
 
 from src.scrapers.base import ScrapingNode
@@ -19,6 +27,7 @@ from src.scrapers.base import ScrapingNode
 _BASE = "https://query1.finance.yahoo.com"
 _CRUMB_URL = f"{_BASE}/v1/test/getcrumb"
 _SUMMARY_URL = f"{_BASE}/v10/finance/quoteSummary/{{symbol}}"
+_CHART_URL = "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}"
 _HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
     "Referer": "https://finance.yahoo.com/",
@@ -337,6 +346,28 @@ class YahooProfile(BaseModel):
     # ── analyst recommendation trend (last 4 months) ──────────────────────────
     recommendation_trend: list[RecommendationSnapshot] = Field(default_factory=list)
 
+    # ── price-history derived features (session-count windows) ────────────────
+    # All None if the price-history fetch failed. Returns are in percent.
+    ret_1d_pct:   float | None = None
+    ret_5d_pct:   float | None = None
+    ret_21d_pct:  float | None = None
+    ret_42d_pct:  float | None = None
+    ret_126d_pct: float | None = None
+    ret_252d_pct: float | None = None
+    vol_21d_pct:  float | None = None     # annualized stdev of last 21 log-returns, %
+    price_norm_d0: float | None = None    # close[-1] / close[-11]
+    price_norm_d1: float | None = None    # close[-2] / close[-12]
+    price_norm_d2: float | None = None
+    price_norm_d3: float | None = None
+    price_norm_d4: float | None = None
+    price_norm_d5: float | None = None
+    price_norm_d6: float | None = None
+    price_norm_d7: float | None = None
+    price_norm_d8: float | None = None
+    price_norm_d9: float | None = None
+    years_listed: float | None = None     # days since first trade / 365.25
+    first_trade_date: str | None = None   # ISO date
+
 
 # ── parsing helpers ───────────────────────────────────────────────────────────
 
@@ -419,6 +450,92 @@ def _parse_estimate(t: dict) -> EarningsEstimate:
     )
 
 
+# ── price-history fetch (chart API, no auth) ──────────────────────────────────
+
+def _fetch_price_history(symbol: str, timeout: int = 30) -> tuple[list[int], list[float | None], int | None]:
+    """
+    Fetch ~3y of daily closes via the public chart endpoint (no crumb needed).
+    Returns (timestamps, closes, first_trade_date_epoch). Empty/None on failure.
+    """
+    try:
+        session = cf_requests.Session(impersonate="chrome124")
+        resp = session.get(
+            _CHART_URL.format(symbol=symbol),
+            headers=_HEADERS,
+            params={"interval": "1d", "range": "3y", "includePrePost": "false"},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        result = (resp.json().get("chart", {}).get("result") or [None])[0]
+        if not result:
+            return [], [], None
+        meta = result.get("meta") or {}
+        timestamps = result.get("timestamp") or []
+        closes = ((result.get("indicators", {}).get("quote") or [{}])[0].get("close") or [])
+        first_trade = meta.get("firstTradeDate") or meta.get("firstTradeDateEpochUtc")
+        return timestamps, closes, first_trade
+    except Exception:
+        return [], [], None
+
+
+def _price_features(timestamps: list[int], closes: list[float | None], first_trade_epoch: int | None) -> dict:
+    """Compute session-count return / volatility / price_norm / years_listed features."""
+    valid: list[float] = [c for c in closes if c is not None and c > 0]
+    out: dict = {
+        "ret_1d_pct": None, "ret_5d_pct": None, "ret_21d_pct": None,
+        "ret_42d_pct": None, "ret_126d_pct": None, "ret_252d_pct": None,
+        "vol_21d_pct": None,
+        "first_trade_date": None, "years_listed": None,
+    }
+    for k in range(10):
+        out[f"price_norm_d{k}"] = None
+
+    if len(valid) >= 2:
+        current = valid[-1]
+        for horizon, key in [(1, "ret_1d_pct"), (5, "ret_5d_pct"), (21, "ret_21d_pct"),
+                             (42, "ret_42d_pct"), (126, "ret_126d_pct"), (252, "ret_252d_pct")]:
+            if len(valid) > horizon:
+                past = valid[-1 - horizon]
+                if past > 0:
+                    out[key] = round((current - past) / past * 100.0, 4)
+
+    # vol_21d: annualized stdev of last 21 daily log-returns (in %)
+    if len(valid) >= 22:
+        tail = valid[-22:]
+        rets = [math.log(tail[i] / tail[i - 1]) for i in range(1, 22) if tail[i - 1] > 0]
+        if len(rets) >= 2:
+            mean = sum(rets) / len(rets)
+            var = sum((r - mean) ** 2 for r in rets) / (len(rets) - 1)
+            out["vol_21d_pct"] = round(math.sqrt(var) * math.sqrt(252) * 100.0, 4)
+
+    # price_norm_d{k}: close[-1-k] / close[-11-k] for k in 0..9
+    for k in range(10):
+        if len(valid) > 11 + k:
+            denom = valid[-11 - k]
+            if denom > 0:
+                out[f"price_norm_d{k}"] = round(valid[-1 - k] / denom, 6)
+
+    if first_trade_epoch:
+        try:
+            d0 = datetime.fromtimestamp(int(first_trade_epoch), tz=timezone.utc).date()
+            out["first_trade_date"] = d0.isoformat()
+            out["years_listed"] = round(
+                (datetime.now(timezone.utc).date() - d0).days / 365.25, 3
+            )
+        except (ValueError, OSError, OverflowError):
+            pass
+    elif timestamps:
+        try:
+            d0 = datetime.fromtimestamp(int(timestamps[0]), tz=timezone.utc).date()
+            out["years_listed"] = round(
+                (datetime.now(timezone.utc).date() - d0).days / 365.25, 3
+            )
+        except (ValueError, OSError, OverflowError):
+            pass
+
+    return out
+
+
 # ── public API ────────────────────────────────────────────────────────────────
 
 class YahooProfileNode(ScrapingNode):
@@ -432,6 +549,8 @@ class YahooProfileNode(ScrapingNode):
 def scrape_yahoo_profile(symbol: str, timeout: int = 120) -> YahooProfile:
     symbol = symbol.upper()
     core, fin, analysis, bs_dom, cf_dom = _fetch_all_via_playwright(symbol, timeout)
+    ts, closes, first_trade_epoch = _fetch_price_history(symbol)
+    px_feat = _price_features(ts, closes, first_trade_epoch)
 
     price_m = core.get("price", {})
     profile_m = core.get("assetProfile", {})
@@ -536,4 +655,5 @@ def scrape_yahoo_profile(symbol: str, timeout: int = 120) -> YahooProfile:
         earnings_estimates=trend_entries,
         earnings_history=earnings_hist,
         recommendation_trend=rec_trend,
+        **px_feat,
     )

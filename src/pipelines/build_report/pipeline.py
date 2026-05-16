@@ -31,10 +31,11 @@ from src.pipelines.build_report.select_companies import select_top_companies
 @dataclass
 class PipelineBundle:
     report: DailyReport
-    news: object        # NewsPipelineResult
-    macro: object       # MacroIndicatorsResult
-    screened: object    # PipelineResult (screened_stocks)
-    overview: object    # MarketOverviewResult
+    news: object             # NewsPipelineResult
+    macro: object            # MacroIndicatorsResult
+    screened: object         # PipelineResult (screened_stocks)
+    overview: object         # MarketOverviewResult
+    macro_snapshot: object   # MacroSnapshot (for the ff_analysis model)
 
 
 def _cached(name: str, fn, force: bool, verbose: bool) -> object:
@@ -78,6 +79,14 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         _log(f"market_overview failed ({exc}) — variations will be empty")
         overview = MarketOverviewResult(groups=[])
 
+    _log("Fetching macro snapshot (ff_analysis model inputs)...")
+    from src.scrapers.technical.macro_snapshot import MacroSnapshot, scrape_macro_snapshot
+    try:
+        macro_snap = _cached("macro_snapshot", scrape_macro_snapshot, force, verbose)
+    except Exception as exc:
+        _log(f"macro_snapshot failed ({exc}) — snapshot will be empty")
+        macro_snap = MacroSnapshot()
+
     # ── select top 3 companies ─────────────────────────────────────────────────
     top3 = select_top_companies(screened, n=3)
     if verbose:
@@ -116,4 +125,5 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         macro=macro,
         screened=screened,
         overview=overview,
+        macro_snapshot=macro_snap,
     )
