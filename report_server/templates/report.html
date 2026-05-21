@@ -264,6 +264,42 @@
 
         .info-btn:hover { color: var(--ink-accent); }
 
+        /* ── Personal View (in sidebar) ────────────────────────────────────── */
+        .personal-view {
+            margin-top: 1.75rem;
+            padding-top: 1.25rem;
+            border-top: var(--border-double);
+        }
+
+        .personal-view .pv-byline {
+            font-family: var(--font-script);
+            font-size: 1.6rem;
+            color: var(--ink-accent);
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+
+        .personal-view .pv-title {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: 0.95rem;
+            line-height: 1.25;
+            margin-bottom: 0.75rem;
+            text-transform: none;
+            letter-spacing: 0;
+            color: var(--ink-main);
+        }
+
+        .personal-view p {
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin-bottom: 0.65rem;
+            text-align: justify;
+            color: var(--ink-light);
+        }
+
+        .personal-view p:first-of-type { color: var(--ink-main); }
+
         /* ── Companies scroller ────────────────────────────────────────────── */
         .scroller-wrapper { margin-bottom: 3rem; }
 
@@ -619,6 +655,16 @@
                 </div>
                 {% endfor %}
             </div>
+
+            {% if report.personal_view %}
+            <article class="personal-view">
+                <div class="pv-byline">Personal View</div>
+                <h3 class="pv-title">{{ report.personal_view.title }}</h3>
+                {% for para in report.personal_view.article.split('\n\n') if para.strip() %}
+                <p>{{ para.strip() }}</p>
+                {% endfor %}
+            </article>
+            {% endif %}
         </aside>
 
     </div><!-- .page-layout -->

@@ -23,6 +23,7 @@ from src.pipelines.build_report import _checkpoints as ckpt
 from src.pipelines.build_report.build_articles import build_title_article, build_title2_article2
 from src.pipelines.build_report.build_companies import build_companies
 from src.pipelines.build_report.build_indicators import build_indicators
+from src.pipelines.build_report.build_personal_view import build_personal_view
 from src.pipelines.build_report.build_variations import build_variations
 from src.pipelines.build_report.models import DailyReport
 from src.pipelines.build_report.select_companies import select_top_companies
@@ -109,6 +110,19 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
     _log("Building article 2 (macro view)...")
     title2, article2 = build_title2_article2(indicators, companies, macro)
 
+    _log("Building Personal View...")
+    try:
+        personal_view = build_personal_view(
+            today_title=title,
+            today_article=article,
+            today_title2=title2,
+            today_article2=article2,
+            variations=variations,
+        )
+    except Exception as exc:
+        _log(f"personal_view failed ({exc}) — skipping section")
+        personal_view = None
+
     report = DailyReport(
         title=title,
         article=article,
@@ -118,6 +132,7 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         article2=article2,
         variations=variations,
         generated_at=datetime.now(timezone.utc).isoformat(),
+        personal_view=personal_view,
     )
     return PipelineBundle(
         report=report,

@@ -49,6 +49,11 @@ class AssetVariation(BaseModel):
     periods: VariationPeriods
 
 
+class PersonalView(BaseModel):
+    title: str
+    article: str
+
+
 class DailyReport(BaseModel):
     title: str
     article: str
@@ -58,3 +63,4 @@ class DailyReport(BaseModel):
     article2: str
     variations: list[AssetVariation] = Field(default_factory=list)
     generated_at: str
+    personal_view: PersonalView | None = None
