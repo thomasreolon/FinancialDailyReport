@@ -27,7 +27,7 @@ RUN uv sync --frozen --only-group server
 COPY report_server/ ./report_server/
 ENV PYTHONPATH=/app
 EXPOSE 8080
-CMD ["sh", "-c", "uv run uvicorn report_server.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "/app/.venv/bin/uvicorn report_server.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
 
 # --- pipeline job ---
 FROM base AS job

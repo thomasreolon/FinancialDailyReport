@@ -28,7 +28,7 @@ health-live:
 # Build the report-server image locally and verify all imports load
 check-server-image:
     docker build --target report-server -t report-server-local . \
-      && docker run --rm report-server-local uv run python -c \
+      && docker run --rm report-server-local /app/.venv/bin/python -c \
            "from report_server.main import app; print('✓ report-server imports OK')"
 
 # ── Local dev ──────────────────────────────────────────────────────────────────
