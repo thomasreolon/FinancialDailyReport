@@ -247,9 +247,12 @@
             flex-shrink: 0;
             margin-top: 0.35rem;
         }
-        .status-dot--green { background-color: var(--ink-green); }
+        .status-dot--green { background-color: #1a9e4a; }
         .status-dot--grey  { background-color: var(--ink-faded); }
-        .status-dot--red   { background-color: var(--ink-accent); }
+        .status-dot--red   { background-color: #d42b2b; }
+
+        [data-theme="dark"] .status-dot--green { background-color: var(--ink-green); }
+        [data-theme="dark"] .status-dot--red   { background-color: var(--ink-accent); }
 
         .info-btn {
             background: none; border: none;
