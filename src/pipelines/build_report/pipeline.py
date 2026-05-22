@@ -89,6 +89,21 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         _log(f"macro_snapshot failed ({exc}) — snapshot will be empty")
         macro_snap = MacroSnapshot()
 
+    # ── NN scoring: predict forward returns for every screened company ────────
+    _log("Scoring screened stocks with NN model...")
+    from src.ml.predictor import compute_nn_score, predict as _nn_predict
+    scored_n = 0
+    for company in screened.companies:
+        try:
+            preds = _nn_predict(company.yahoo, macro_snap)
+            if preds:
+                company.nn_predictions = preds
+                company.nn_score = compute_nn_score(preds)
+                scored_n += 1
+        except Exception as exc:
+            _log(f"  nn scoring failed for {company.ticker}: {exc}")
+    _log(f"  scored {scored_n}/{len(screened.companies)} companies via NN")
+
     # ── select top 3 companies ─────────────────────────────────────────────────
     top3 = select_top_companies(screened, n=3)
     if verbose:

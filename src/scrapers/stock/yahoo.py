@@ -508,12 +508,14 @@ def _price_features(timestamps: list[int], closes: list[float | None], first_tra
             var = sum((r - mean) ** 2 for r in rets) / (len(rets) - 1)
             out["vol_21d_pct"] = round(math.sqrt(var) * math.sqrt(252) * 100.0, 4)
 
-    # price_norm_d{k}: close[-1-k] / close[-11-k] for k in 0..9
-    for k in range(10):
-        if len(valid) > 11 + k:
-            denom = valid[-11 - k]
-            if denom > 0:
-                out[f"price_norm_d{k}"] = round(valid[-1 - k] / denom, 6)
+    # price_norm_d{k}: close[-1-k] / close[-11] for k in 0..9 — single denominator
+    # so all 10 features share the same 10-sessions-ago reference (matches training).
+    if len(valid) >= 11:
+        denom = valid[-11]
+        if denom > 0:
+            for k in range(10):
+                if len(valid) > 1 + k:
+                    out[f"price_norm_d{k}"] = round(valid[-1 - k] / denom, 6)
 
     if first_trade_epoch:
         try:

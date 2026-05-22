@@ -44,6 +44,16 @@ _RET_HORIZONS: tuple[tuple[int, str], ...] = (
     (378, "378d"),
 )
 
+# Commodity / theme ETFs used by the ff_analysis model: (tag, Yahoo symbol).
+_ETF_SPECS: tuple[tuple[str, str], ...] = (
+    ("gld",  "GLD"),
+    ("dbc",  "DBC"),
+    ("dba",  "DBA"),
+    ("cper", "CPER"),
+    ("lit",  "LIT"),
+    ("weat", "WEAT"),
+)
+
 
 class MacroSnapshot(BaseModel):
     # Levels
@@ -53,6 +63,8 @@ class MacroSnapshot(BaseModel):
     t10y2y:     float | None = None    # DGS10 − DGS2 (%)
     hy_spread:  float | None = None    # BAMLH0A0HYM2 OAS (%)
     usd_eur:    float | None = None    # USD per 1 EUR (EURUSD=X last close)
+    usd_gbp:    float | None = None    # USD per 1 GBP (GBPUSD=X last close)
+    jpy_usd:    float | None = None    # JPY per 1 USD (USDJPY=X last close)
 
     # Session-count returns (in percent, e.g. 1.23 means +1.23%)
     sp500_ret_5d:   float | None = None
@@ -63,6 +75,32 @@ class MacroSnapshot(BaseModel):
     wti_ret_21d:  float | None = None
     wti_ret_126d: float | None = None
     wti_ret_378d: float | None = None
+
+    # ETF session-count returns — gold, broad commodities, agriculture, copper, lithium, wheat
+    etf_gld_ret_5d:   float | None = None
+    etf_gld_ret_21d:  float | None = None
+    etf_gld_ret_126d: float | None = None
+    etf_gld_ret_378d: float | None = None
+    etf_dbc_ret_5d:   float | None = None
+    etf_dbc_ret_21d:  float | None = None
+    etf_dbc_ret_126d: float | None = None
+    etf_dbc_ret_378d: float | None = None
+    etf_dba_ret_5d:   float | None = None
+    etf_dba_ret_21d:  float | None = None
+    etf_dba_ret_126d: float | None = None
+    etf_dba_ret_378d: float | None = None
+    etf_cper_ret_5d:   float | None = None
+    etf_cper_ret_21d:  float | None = None
+    etf_cper_ret_126d: float | None = None
+    etf_cper_ret_378d: float | None = None
+    etf_lit_ret_5d:   float | None = None
+    etf_lit_ret_21d:  float | None = None
+    etf_lit_ret_126d: float | None = None
+    etf_lit_ret_378d: float | None = None
+    etf_weat_ret_5d:   float | None = None
+    etf_weat_ret_21d:  float | None = None
+    etf_weat_ret_126d: float | None = None
+    etf_weat_ret_378d: float | None = None
 
     fetched_at: str = ""
     sources:    dict[str, str] = {}    # field → data source/date
@@ -118,13 +156,18 @@ def scrape_macro_snapshot(timeout: int = 30) -> MacroSnapshot:
     snap = MacroSnapshot(fetched_at=datetime.now(timezone.utc).isoformat())
 
     # — Yahoo chart series —
-    yahoo_targets = {
+    yahoo_targets: dict[str, str] = {
         "^VIX":     "vix",
         "^TNX":     "dgs10",       # ^TNX is 10Y yield expressed in percent (e.g. 4.32)
         "^GSPC":    "sp500",
         "CL=F":     "wti",
         "EURUSD=X": "eurusd",
+        "GBPUSD=X": "gbpusd",
+        "USDJPY=X": "usdjpy",
     }
+    for tag, sym in _ETF_SPECS:
+        yahoo_targets[sym] = f"etf_{tag}"
+
     closes_by_tag: dict[str, list[float]] = {}
     for sym, tag in yahoo_targets.items():
         valid, _ = _chart_closes(session, sym, timeout=timeout)
@@ -135,10 +178,14 @@ def scrape_macro_snapshot(timeout: int = 30) -> MacroSnapshot:
     snap.vix     = _last_level(closes_by_tag.get("vix", []))
     snap.dgs10   = _last_level(closes_by_tag.get("dgs10", []))
     snap.usd_eur = _last_level(closes_by_tag.get("eurusd", []))
+    snap.usd_gbp = _last_level(closes_by_tag.get("gbpusd", []))
+    snap.jpy_usd = _last_level(closes_by_tag.get("usdjpy", []))
 
     for n, suf in _RET_HORIZONS:
         setattr(snap, f"sp500_ret_{suf}", _bar_ret(closes_by_tag.get("sp500", []), n))
         setattr(snap, f"wti_ret_{suf}",   _bar_ret(closes_by_tag.get("wti", []),   n))
+        for tag, _sym in _ETF_SPECS:
+            setattr(snap, f"etf_{tag}_ret_{suf}", _bar_ret(closes_by_tag.get(f"etf_{tag}", []), n))
 
     # — FRED series (DGS2 + HY spread) —
     try:

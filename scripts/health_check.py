@@ -408,6 +408,29 @@ def run_smoke_test() -> dict:
         return {"error": f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"}
 
 
+def run_nn_model_check() -> dict:
+    """Load the bundled NN model and run a prediction against AAPL + macro snap."""
+    try:
+        print("\n  NN model load + AAPL prediction...")
+        from src.ml.predictor import compute_nn_score, predict
+        from src.scrapers.stock.yahoo import scrape_yahoo_profile
+        from src.scrapers.technical.macro_snapshot import scrape_macro_snapshot
+
+        snap = scrape_macro_snapshot()
+        yahoo = scrape_yahoo_profile("AAPL")
+        preds = predict(yahoo, snap)
+        if preds is None:
+            return {"error": "predict() returned None — feature vector could not be built for AAPL"}
+        score = compute_nn_score(preds)
+        # sanity bounds — these are %-return predictions, anything outside ±200 is suspicious
+        bad = {k: v for k, v in preds.items() if not (-200.0 <= v <= 200.0)}
+        if bad:
+            return {"error": f"prediction out of sanity bounds: {bad}"}
+        return {"predictions": preds, "nn_score": score}
+    except Exception as exc:
+        return {"error": f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"}
+
+
 # ── Live server check ─────────────────────────────────────────────────────────
 
 def check_live_server() -> LiveCheckResult:
@@ -621,6 +644,7 @@ def main() -> None:
         print()
 
     smoke: dict | None = None
+    nn_check: dict | None = None
     if args.full:
         smoke = run_smoke_test()
         if smoke.get("error"):
@@ -632,6 +656,14 @@ def main() -> None:
                 print(f"   Gemini filled: {smoke['gemini_filled']}")
             if smoke.get("still_null"):
                 print(f"   Still null: {smoke['still_null']}")
+        print()
+
+        nn_check = run_nn_model_check()
+        if nn_check.get("error"):
+            print(f"❌ NN model check FAILED:\n{nn_check['error']}")
+        else:
+            print(f"✅ NN model OK — AAPL nn_score={nn_check['nn_score']:+.2f}")
+            print(f"   predictions: {nn_check['predictions']}")
         print()
 
     live: LiveCheckResult | None = None
@@ -662,7 +694,8 @@ def main() -> None:
     print(f"  Report → {out_path.relative_to(ROOT)}")
 
     live_fail = live is not None and live.status == Status.FAIL
-    if fail > 0 or live_fail:
+    nn_fail = nn_check is not None and nn_check.get("error") is not None
+    if fail > 0 or live_fail or nn_fail:
         sys.exit(1)
 
 

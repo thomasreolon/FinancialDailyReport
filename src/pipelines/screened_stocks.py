@@ -51,6 +51,9 @@ class ScreenedCompany(BaseModel):
     yahoo: YahooProfile
     anachart: AnaChartResult | None
     marketbeat: MarketBeatForecastResult | None
+    # Populated by build_report pipeline after macro snapshot is available.
+    nn_score: float | None = None
+    nn_predictions: dict[str, float] | None = None
 
 
 class PipelineResult(BaseModel):

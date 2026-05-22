@@ -32,6 +32,7 @@ CMD ["sh", "-c", "uv run uvicorn report_server.main:app --host 0.0.0.0 --port ${
 # --- pipeline job ---
 FROM base AS job
 COPY src/ ./src/
+COPY models/ ./models/
 COPY personal_view.md ./personal_view.md
 ENV PYTHONPATH=/app
 CMD ["uv", "run", "python", "src/run_report.py"]

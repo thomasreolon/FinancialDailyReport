@@ -55,6 +55,19 @@ def _score(company: ScreenedCompany) -> float:
 
 
 def select_top_companies(result: PipelineResult, n: int = 3) -> list[ScreenedCompany]:
-    scored = [(c, _score(c)) for c in result.companies]
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return [c for c, _ in scored[:n]]
+    """Pick the top-n screened companies.
+
+    Prefers the NN composite score (set by the build_report pipeline). Falls
+    back to the legacy heuristic _score for any company without an NN score so
+    the report still produces n picks even on a cold day.
+    """
+    with_nn:    list[ScreenedCompany] = [c for c in result.companies if c.nn_score is not None]
+    without_nn: list[ScreenedCompany] = [c for c in result.companies if c.nn_score is None]
+
+    with_nn.sort(key=lambda c: c.nn_score, reverse=True)
+    without_nn.sort(key=_score, reverse=True)
+
+    picks: list[ScreenedCompany] = with_nn[:n]
+    if len(picks) < n:
+        picks.extend(without_nn[: n - len(picks)])
+    return picks
