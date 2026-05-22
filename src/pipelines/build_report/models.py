@@ -64,6 +64,7 @@ class DailyReport(BaseModel):
     title: str
     article: str
     companies: list[CompanyReport] = Field(default_factory=list)
+    companies_sentiment: Literal["BEARISH", "NEUTRAL", "BULLISH"] | None = None
     indicators: list[IndicatorReport] = Field(default_factory=list)
     title2: str
     article2: str

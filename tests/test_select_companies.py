@@ -7,6 +7,7 @@ import pytest
 from src.ml.predictor import compute_nn_score
 from src.pipelines.build_report.select_companies import (
     combined_score,
+    companies_nn_sentiment,
     heuristic_score,
     select_top_companies,
 )
@@ -50,3 +51,18 @@ def test_combined_score_formula():
     c = _company("X", nn=30.0)
     h = heuristic_score(c)
     assert combined_score(c) == pytest.approx((30.0 + 0.3) / 1.2 + h / 2.0)
+
+
+@pytest.mark.parametrize(
+    "scores,expected",
+    [
+        ([0.0, 0.0, 0.0], "BEARISH"),
+        ([0.005, 0.008], "BEARISH"),
+        ([0.05, 0.08, 0.10], "NEUTRAL"),
+        ([0.20, 0.15, 0.18], "BULLISH"),
+        ([], "NEUTRAL"),
+    ],
+)
+def test_companies_nn_sentiment(scores, expected):
+    picks = [_company(f"T{i}", nn=s) for i, s in enumerate(scores)]
+    assert companies_nn_sentiment(picks) == expected

@@ -306,6 +306,51 @@
         /* ── Companies scroller ────────────────────────────────────────────── */
         .scroller-wrapper { margin-bottom: 3rem; }
 
+        .scroller-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 1rem;
+            border-bottom: var(--border-double);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .scroller-header .section-title {
+            border-bottom: none;
+            margin-bottom: 0;
+            flex: 1;
+        }
+
+        .sentiment-tag {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            padding: 0.35rem 0.7rem;
+            border-radius: 2px;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        .sentiment-tag--bullish {
+            background: color-mix(in srgb, var(--ink-green) 18%, var(--paper-light));
+            color: var(--ink-green);
+            border: 1px solid color-mix(in srgb, var(--ink-green) 45%, transparent);
+        }
+
+        .sentiment-tag--bearish {
+            background: color-mix(in srgb, var(--ink-accent) 18%, var(--paper-light));
+            color: var(--ink-accent);
+            border: 1px solid color-mix(in srgb, var(--ink-accent) 45%, transparent);
+        }
+
+        .sentiment-tag--neutral {
+            background: color-mix(in srgb, var(--ink-light) 14%, var(--paper-light));
+            color: var(--ink-light);
+            border: 1px solid color-mix(in srgb, var(--ink-light) 35%, transparent);
+        }
+
         .scroller-container {
             display: flex; gap: 1.5rem;
             overflow-x: auto;
@@ -643,7 +688,12 @@
 
             <!-- COMPANIES SCROLLER -->
             <div class="scroller-wrapper">
-                <h2 class="section-title">Selected Companies</h2>
+                <div class="scroller-header">
+                    <h2 class="section-title">Selected Companies</h2>
+                    {% if report.companies_sentiment %}
+                    <span class="sentiment-tag sentiment-tag--{{ report.companies_sentiment | lower }}">{{ report.companies_sentiment }}</span>
+                    {% endif %}
+                </div>
                 <div class="scroller-container">
                     {% for c in report.companies %}
                     <div class="index-card">

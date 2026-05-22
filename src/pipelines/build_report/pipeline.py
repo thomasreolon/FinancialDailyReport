@@ -27,7 +27,7 @@ from src.pipelines.build_report.build_market_compare import build_market_compare
 from src.pipelines.build_report.build_personal_view import build_personal_view
 from src.pipelines.build_report.build_variations import build_variations
 from src.pipelines.build_report.models import DailyReport
-from src.pipelines.build_report.select_companies import select_top_companies
+from src.pipelines.build_report.select_companies import companies_nn_sentiment, select_top_companies
 
 
 @dataclass
@@ -106,8 +106,9 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
 
     # ── select top 3 companies ─────────────────────────────────────────────────
     top3 = select_top_companies(screened, n=3)
+    companies_sentiment = companies_nn_sentiment(top3)
     if verbose:
-        print(f"  Top 3 selected: {[c.ticker for c in top3]}")
+        print(f"  Top 3 selected: {[c.ticker for c in top3]} ({companies_sentiment})")
 
     # ── build sections ─────────────────────────────────────────────────────────
     _log("Building indicators section...")
@@ -146,6 +147,7 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         title=title,
         article=article,
         companies=companies,
+        companies_sentiment=companies_sentiment,
         indicators=indicators,
         title2=title2,
         article2=article2,

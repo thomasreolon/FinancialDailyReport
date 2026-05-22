@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from src.pipelines.screened_stocks import PipelineResult, ScreenedCompany
+
+CompaniesSentiment = Literal["BEARISH", "NEUTRAL", "BULLISH"]
 
 
 def _parse_upside(s: str | None) -> float | None:
@@ -104,3 +107,16 @@ def select_top_companies(result: PipelineResult, n: int = 3) -> list[ScreenedCom
         picks.append(next_pick)
 
     return picks
+
+
+def companies_nn_sentiment(picks: list[ScreenedCompany]) -> CompaniesSentiment:
+    """NN outlook tag from mean nn_score of selected companies."""
+    scores = [c.nn_score for c in picks if c.nn_score is not None]
+    if not scores:
+        return "NEUTRAL"
+    avg = sum(scores) / len(scores)
+    if avg < 0.01:
+        return "BEARISH"
+    if avg > 0.12:
+        return "BULLISH"
+    return "NEUTRAL"
