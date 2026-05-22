@@ -27,10 +27,11 @@ _PREFIX = "raw"
 _PERSONAL_MD = Path(__file__).resolve().parents[3] / "personal_view.md"
 
 
-_PROMPT = """Sei un analista di mercato che cura una rubrica personale chiamata "Personal View".
+_PROMPT = """Sei un analista di mercato che cura una brevissima rubrica personale chiamata "Personal View".
 
 Scrivi interamente in italiano. Mantieni i marcatori di formato TITLE: e ARTICLE: in inglese.
 La rubrica deve riflettere il punto di vista personale dell'autore (vedi sotto), confrontandolo con il flusso di notizie di oggi e di ieri e con i movimenti degli asset globali. Sii diretto, opinionato e conciso: questa non è una sintesi neutra.
+L'articolo deve essere calmo e raccontato in modo chiaro, conciso e professionale.
 
 === Note personali dell'autore (priorità massima — usa queste come tesi) ===
 {personal_notes}
@@ -52,11 +53,9 @@ TITOLO: {yesterday_title}
 
 Scrivi:
 1. Un TITOLO breve (max 10 parole) che catturi la tesi personale del giorno.
-2. Un ARTICOLO (180-260 parole) che:
-   - Parta dalle note personali e le metta in relazione con i fatti del giorno
+2. Un ARTICOLO (100-150 parole) che:
    - Confronti il quadro di oggi con quello di ieri evidenziando cosa è cambiato
-   - Citi 1-2 movimenti specifici dalla performance degli asset a supporto o contraddizione della tesi
-   - Si chiuda con un'azione o un'osservazione concreta da monitorare
+   - Si chiuda con un'azione o un'osservazione concreta da monitorare legata alla tesi personale o a importanti avvenimenti che potrebbero influenzare il comportamento del mercato
 
 Formato:
 TITLE: <titolo>
