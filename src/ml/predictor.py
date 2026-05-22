@@ -60,7 +60,8 @@ def predict(yahoo: "YahooProfile", snap: "MacroSnapshot") -> dict[str, float] | 
 def compute_nn_score(preds: dict[str, float]) -> float:
     """Composite score used for ranking screened stocks.
 
-    min(1y * 2, 3y) rewards companies whose 3y return matches or exceeds twice
-    their 1y return — i.e. sustained growth, not just a near-term pop.
+    Base: min(1y * 2, 3y) — rewards sustained growth, not just a near-term pop.
+    Adjusted: max(0.01 + base/100, base) — slight floor for tiny positive predictions.
     """
-    return min(preds["return_1y_pct"] * 2.0, preds["return_3y_pct"])
+    base = min(preds["return_1y_pct"] * 2.0, preds["return_3y_pct"])
+    return max(0.01 + base / 100.0, base)
