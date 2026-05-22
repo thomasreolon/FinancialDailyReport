@@ -180,3 +180,33 @@ Checkpoints are pickled to `/tmp/ee_mind_report_YYYY-MM-DD/` so a crashed run ca
 **All deploys are automatic** — push to `main` and GitHub Actions handles the rest. The action builds the Docker image and updates the GCP Cloud Run service. Check the Actions tab if the service seems down after a push.
 
 The GCS bucket `the-mind-financial-reports` stores reports as `raw/YYYY-MM-DD.json` and `raw/latest.json`. The report server reads from GCS with a 5-minute TTL cache for recent dates.
+
+---
+
+## NN model and backtesting from archived raw data
+
+The build_report pipeline scores every screened company with the bundled NN (`models/nn_torch_snapshot_returns.joblib`). Each day's GCS archive is enough to **re-run or backtest the model without re-scraping**.
+
+**What `raw/YYYY-MM-DD.json` stores for the NN:**
+
+| Section | Contents |
+|---------|----------|
+| `screened_stocks.companies[]` | Full `yahoo` profile per ticker, plus `nn_predictions` and `nn_score` when scoring succeeded |
+| `macro_snapshot` | Shared macro/FX inputs (VIX, yields, index/commodity/ETF returns, FX rates) used for every company |
+
+**Not stored:** the materialized 76-element feature vector (names in `src/ml/features.py` / `models/nn_torch_snapshot_returns.meta.json`). Rebuild it from the archive:
+
+```python
+from src.ml.features import build_feature_vector
+from src.ml.predictor import predict, compute_nn_score
+
+vec = build_feature_vector(company["yahoo"], data["macro_snapshot"])
+preds = predict(company["yahoo"], data["macro_snapshot"])  # None if vec is None
+```
+
+**Maintenance notes:**
+
+- Pin or version `src/ml/features.py` when comparing historical runs — changing feature logic changes recomputed inputs even if the JSON is unchanged.
+- `nn_predictions` / `nn_score` in the archive are the outputs from run day; recompute and diff against them to catch drift.
+- Only **screened** tickers are archived, not a full market universe. Companies with failed price-history scrapes have `nn_score` / `nn_predictions` null (no separate failure reason in JSON).
+- The rendered `report` section has only the top 3 companies and no NN fields; use `screened_stocks` for scoring/backtest data.
