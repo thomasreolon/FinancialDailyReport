@@ -23,6 +23,7 @@ from src.pipelines.build_report import _checkpoints as ckpt
 from src.pipelines.build_report.build_articles import build_title_article, build_title2_article2
 from src.pipelines.build_report.build_companies import build_companies
 from src.pipelines.build_report.build_indicators import build_indicators
+from src.pipelines.build_report.build_market_compare import build_market_compare
 from src.pipelines.build_report.build_personal_view import build_personal_view
 from src.pipelines.build_report.build_variations import build_variations
 from src.pipelines.build_report.models import DailyReport
@@ -103,6 +104,9 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
     _log("Building variations section...")
     variations = build_variations(overview)
 
+    _log("Building market_compare benchmarks (VWCE/SPY)...")
+    market_compare = build_market_compare()
+
     # ── LLM articles ───────────────────────────────────────────────────────────
     _log("Building article 1 (news synthesis)...")
     title, article = build_title_article(news)
@@ -133,6 +137,7 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         variations=variations,
         generated_at=datetime.now(timezone.utc).isoformat(),
         personal_view=personal_view,
+        market_compare=market_compare,
     )
     return PipelineBundle(
         report=report,

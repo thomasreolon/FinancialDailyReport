@@ -398,6 +398,72 @@
 
         .details-btn:hover { color: var(--ink-accent); }
 
+        /* ── Benchmark compare card ────────────────────────────────────────── */
+        .index-card.benchmark-card {
+            border-top-color: var(--ink-navy);
+            justify-content: stretch;
+            gap: 0;
+            background-image: none;
+        }
+
+        .benchmark-card .index-header {
+            padding-bottom: 0.4rem;
+            border-bottom: 1px dashed var(--ink-faded);
+        }
+
+        .benchmark-card .ticker {
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+        }
+
+        .benchmark-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            padding: 0.7rem 0;
+            background: var(--paper-light);
+        }
+
+        .benchmark-row + .benchmark-row {
+            border-top: 1px dashed var(--ink-faded);
+        }
+
+        .benchmark-row-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .benchmark-symbol {
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        .benchmark-delta {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .benchmark-row-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--ink-light);
+        }
+
+        .benchmark-name {
+            font-style: italic;
+            color: var(--ink-faded);
+        }
+
+        .benchmark-prices {
+            letter-spacing: 0.02em;
+        }
+
         /* ── Analyst note ──────────────────────────────────────────────────── */
         .ink-up   { color: var(--ink-green); }
         .ink-down { color: var(--ink-accent); }
@@ -590,6 +656,28 @@
                         <button class="details-btn" onclick="openCompanyModal('{{ c.ticker }}')">&#9776; Financial Vitals</button>
                     </div>
                     {% endfor %}
+                    {% if report.market_compare %}
+                    <div class="index-card benchmark-card">
+                        <div class="index-header">
+                            <span class="ticker">VS. MARKET</span>
+                            <span class="ticker-badge">Benchmarks</span>
+                        </div>
+                        {% for b in report.market_compare %}
+                        <div class="benchmark-row">
+                            <div class="benchmark-row-top">
+                                <span class="benchmark-symbol">{{ b.symbol }}</span>
+                                <span class="benchmark-delta" id="delta-{{ b.symbol }}">—</span>
+                            </div>
+                            <div class="benchmark-row-bottom">
+                                <span class="benchmark-name">{{ b.name }}</span>
+                                <span class="benchmark-prices">
+                                    {{ b.price | fmt_price }} → <span id="live-{{ b.symbol }}">—</span>
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
@@ -616,7 +704,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for v in report.variations | sort_variations %}
+                        {% for v in report.variations %}
                         {% set p = v.periods %}
                         <tr>
                             <td class="asset-name">{{ v.name }}<span class="asset-symbol">({{ v.symbol }})</span></td>
@@ -702,6 +790,7 @@
 
     // ── Company modal data ─────────────────────────────────────────────────────
     const companiesData = {{ report.companies | tojson }};
+    const benchmarksData = {{ (report.market_compare or []) | tojson }};
 
     function openModal(title, content) {
         document.getElementById('modal-title').textContent = title;
@@ -740,7 +829,10 @@
     }
 
     // ── Live prices (Yahoo Finance) ────────────────────────────────────────────
-    const _tickers = companiesData.map(c => c.ticker);
+    const _priceRefs = {};
+    for (const c of companiesData) _priceRefs[c.ticker] = { ref: c.price, prefix: '$' };
+    for (const b of benchmarksData) _priceRefs[b.symbol] = { ref: b.price, prefix: '' };
+    const _tickers = Object.keys(_priceRefs);
 
     async function fetchLivePrices() {
         if (!_tickers.length) return;
@@ -756,18 +848,18 @@
                 const live = q.regularMarketPrice;
                 if (live == null) continue;
 
+                const meta = _priceRefs[ticker];
+                if (!meta) continue;
+
                 const liveEl  = document.getElementById('live-' + ticker);
                 const deltaEl = document.getElementById('delta-' + ticker);
-                if (liveEl) liveEl.textContent = '$' + live.toFixed(2);
+                if (liveEl) liveEl.textContent = meta.prefix + live.toFixed(2);
 
-                if (deltaEl) {
-                    const ref = companiesData.find(c => c.ticker === ticker)?.price;
-                    if (ref != null && ref !== 0) {
-                        const pct = ((live - ref) / ref) * 100;
-                        const sign = pct >= 0 ? '+' : '';
-                        deltaEl.textContent = sign + pct.toFixed(2) + '%';
-                        deltaEl.style.color = pct >= 0 ? 'var(--ink-green)' : 'var(--ink-accent)';
-                    }
+                if (deltaEl && meta.ref != null && meta.ref !== 0) {
+                    const pct = ((live - meta.ref) / meta.ref) * 100;
+                    const sign = pct >= 0 ? '+' : '';
+                    deltaEl.textContent = sign + pct.toFixed(2) + '%';
+                    deltaEl.style.color = pct >= 0 ? 'var(--ink-green)' : 'var(--ink-accent)';
                 }
             }
         } catch (e) {

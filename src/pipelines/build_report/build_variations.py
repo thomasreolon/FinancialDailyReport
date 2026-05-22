@@ -3,19 +3,22 @@ from __future__ import annotations
 from src.pipelines.build_report.models import AssetVariation, VariationPeriods
 from src.scrapers.technical.market_overview import ETFPerformance, MarketOverviewResult
 
+# Ordered thematically: global equities → countries → bonds → commodities → FX.
+# Row order in the report follows this list as-is (no perf-based sort).
 _TARGET: list[tuple[str, str]] = [
-    ("SPY",  "S&P 500"),
-    ("EWQ",  "France"),
-    ("EWZ",  "Brazil"),
-    ("EWG",  "Germany"),
-    ("EWJ",  "Japan"),
-    ("MCHI", "China"),
-    ("BND",  "Aggregate Bonds"),
-    ("DBB",  "Industrial Metals"),
-    ("DBA",  "Agricultural"),
-    ("DBO",  "Oil"),
-    ("GLD",  "Gold"),
-    ("FXE",  "EUR/USD"),
+    ("SPY",     "S&P 500"),
+    ("VWCE.DE", "VWCE All-World"),
+    ("EWQ",     "France"),
+    ("EWG",     "Germany"),
+    ("EWJ",     "Japan"),
+    ("MCHI",    "China"),
+    ("EWZ",     "Brazil"),
+    ("BND",     "Aggregate Bonds"),
+    ("GLD",     "Gold"),
+    ("DBB",     "Industrial Metals"),
+    ("DBO",     "Oil"),
+    ("DBA",     "Agricultural"),
+    ("FXE",     "EUR/USD"),
 ]
 
 

@@ -54,6 +54,12 @@ class PersonalView(BaseModel):
     article: str
 
 
+class BenchmarkQuote(BaseModel):
+    symbol: str
+    name: str
+    price: float | None
+
+
 class DailyReport(BaseModel):
     title: str
     article: str
@@ -64,3 +70,4 @@ class DailyReport(BaseModel):
     variations: list[AssetVariation] = Field(default_factory=list)
     generated_at: str
     personal_view: PersonalView | None = None
+    market_compare: list[BenchmarkQuote] = Field(default_factory=list)

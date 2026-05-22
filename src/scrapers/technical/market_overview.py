@@ -46,7 +46,8 @@ GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
         ("MTUM", "Momentum"), ("DGRO", "Dividend Growth"), ("RSP", "Equal Weight"),
     ]),
     ("Global Equities", [
-        ("ACWI", "World Equities"), ("IEMG", "Emerging Markets"),
+        ("ACWI", "World Equities"), ("VWCE.DE", "VWCE All-World"),
+        ("IEMG", "Emerging Markets"),
         ("SPDW", "World ex-US"), ("VEA", "Developed Markets"), ("IEFA", "EAFE"),
     ]),
     ("Countries", [
