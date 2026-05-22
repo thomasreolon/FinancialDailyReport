@@ -133,9 +133,14 @@
         /* ── Page layout: content + sticky sidebar ─────────────────────────── */
         .page-layout {
             display: grid;
-            grid-template-columns: 1fr 320px;
+            grid-template-columns: minmax(0, 1fr) 320px;
             gap: 3rem;
             align-items: start;
+        }
+
+        /* Let the main column shrink; otherwise flex/card min-widths blow out the grid */
+        .content-col {
+            min-width: 0;
         }
 
         .content-col > article {
@@ -352,16 +357,20 @@
         }
 
         .scroller-container {
-            display: flex; gap: 1.5rem;
+            display: flex;
+            gap: 1.1rem;
             overflow-x: auto;
+            max-width: 100%;
             padding: 0.5rem 0 1.25rem;
             scrollbar-width: thin;
             scrollbar-color: var(--ink-main) transparent;
+            -webkit-overflow-scrolling: touch;
         }
 
         .index-card {
-            min-width: 250px;
-            max-width: 250px;
+            flex: 0 0 218px;
+            min-width: 218px;
+            max-width: 218px;
             background: var(--paper-light);
             border: 1px solid var(--paper-dark);
             border-top: 4px solid var(--ink-accent);
@@ -386,7 +395,7 @@
         .ticker {
             font-family: var(--font-heading);
             font-weight: 700;
-            font-size: 1.35rem;
+            font-size: 1.2rem;
         }
 
         .ticker-badge {
@@ -407,7 +416,7 @@
 
         .price-current {
             font-family: var(--font-mono);
-            font-size: 1.3rem;
+            font-size: 1.15rem;
             font-weight: 700;
         }
 
@@ -448,10 +457,14 @@
 
         /* ── Benchmark compare card ────────────────────────────────────────── */
         .index-card.benchmark-card {
+            flex: 0 0 200px;
+            min-width: 200px;
+            max-width: 200px;
             border-top-color: var(--ink-navy);
             justify-content: stretch;
             gap: 0;
             background-image: none;
+            padding: 1rem;
         }
 
         .benchmark-card .index-header {
