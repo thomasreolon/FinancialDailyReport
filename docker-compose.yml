@@ -9,6 +9,7 @@ services:
     volumes:
       - ${GOOGLE_APPLICATION_CREDENTIALS:-/dev/null}:/gcp/creds.json:ro
     environment:
+      PORT: "8000"
       GOOGLE_APPLICATION_CREDENTIALS: /gcp/creds.json
     restart: unless-stopped
 

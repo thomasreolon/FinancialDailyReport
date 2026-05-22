@@ -33,16 +33,17 @@ check-server-image:
 
 # ── Local dev ──────────────────────────────────────────────────────────────────
 
-# Start the report server locally (http://localhost:8000)
+# Build image and start the report server locally (http://localhost:8000)
 server:
-    docker compose up -d report-server
+    docker compose build report-server
+    docker compose up -d --force-recreate report-server
     @echo "Server → http://localhost:8000"
 
 server-logs:
     docker compose logs -f report-server
 
-server-rebuild:
-    docker compose build report-server && docker compose up -d report-server
+# Alias for server (always rebuilds)
+server-rebuild: server
 
 # Run the full pipeline locally (with checkpoints)
 run:
