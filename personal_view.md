@@ -7,6 +7,7 @@
 
   Geographic bets
   - Overweight: China (energy transition, AI), India (demographics, tech supply chain), Brazil/SE Asia
+  - Internal war in us between social classes with different wealth will cause an external war with China, this will make china disposess all stocks held by non chinese entities.
   - Neutral-to-skeptical: USA (best companies, broken society), Europe (managed decline)
   filter
   - Avoid: high-corruption, extractive-institution economies — use Transparency International CPI as a hard
