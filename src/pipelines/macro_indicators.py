@@ -62,6 +62,55 @@ class MacroIndicatorsResult(BaseModel):
     eurostoxx50_fwd_eps_growth: float | None = None
     leading_sectors: str | None = None
 
+    # Real Yields (TIPS)
+    real_yield_5y: float | None = None          # FRED DFII5
+    real_yield_10y: float | None = None         # FRED DFII10
+    breakeven_5y5y: float | None = None         # FRED T5YIFR — 5y/5y forward inflation
+
+    # Government Liquidity
+    tga_bln: float | None = None                # Treasury General Account balance $Bln
+
+    # Volatility Regime
+    move_index: float | None = None             # ICE BofA MOVE bond volatility index
+    vix3m: float | None = None                  # 3-month VIX
+    vix3m_vix_ratio: float | None = None        # VIX3M / VIX — term structure ratio
+
+    # Investor Sentiment
+    aaii_bull_pct: float | None = None
+    aaii_bear_pct: float | None = None
+    aaii_bull_bear_spread: float | None = None  # bull% - bear%
+
+    # China Growth
+    china_nbs_mfg_pmi: float | None = None
+    china_caixin_mfg_pmi: float | None = None
+
+    # Labor Market
+    jolts_quits_rate: float | None = None       # FRED JTSQUR
+
+    # Credit Stack
+    ig_spread: float | None = None              # IG OAS (BAMLC0A0CM)
+    ccc_spread: float | None = None             # CCC OAS (BAMLH0A3HYM2)
+
+    # Global Rates
+    bund_10y: float | None = None               # German 10Y Bund yield %
+    jgb_10y: float | None = None                # Japan 10Y JGB yield %
+    us_bund_spread: float | None = None         # US10Y - Bund10Y spread %
+
+    # Policy Uncertainty
+    epu_index: float | None = None              # US Economic Policy Uncertainty
+
+    # Oil Term Structure
+    wti_contango_pct: float | None = None       # (12M forward - spot) / spot * 100; negative = backwardation
+
+    # COT Positioning (net speculator contracts)
+    cot_sp500_net: int | None = None
+    cot_tnote_10y_net: int | None = None
+    cot_eur_net: int | None = None
+    cot_jpy_net: int | None = None
+    cot_usd_index_net: int | None = None
+    cot_gold_net: int | None = None
+    cot_report_date: str | None = None
+
     # Metadata
     fetched_at: str = ""
     gemini_filled: list[str] = Field(default_factory=list)
@@ -105,6 +154,19 @@ def _collect_scraped() -> MacroIndicatorsResult:
     from src.scrapers.indicator.sp500_eps_growth import scrape_sp500_eps_growth
     from src.scrapers.indicator.eurostoxx50_fwd_eps import scrape_eurostoxx50_fwd_eps
     from src.scrapers.indicator.leading_sectors import scrape_leading_sectors
+    from src.scrapers.indicator.real_yields import scrape_real_yields
+    from src.scrapers.indicator.breakeven_5y5y import scrape_breakeven_5y5y
+    from src.scrapers.indicator.tga import scrape_tga
+    from src.scrapers.indicator.move_index import scrape_move_index
+    from src.scrapers.indicator.vix_term_structure import scrape_vix_term_structure
+    from src.scrapers.indicator.aaii_sentiment import scrape_aaii_sentiment
+    from src.scrapers.indicator.china_pmi import scrape_china_pmi
+    from src.scrapers.indicator.jolts import scrape_jolts
+    from src.scrapers.indicator.credit_spreads_ext import scrape_credit_spreads_ext
+    from src.scrapers.indicator.intl_yields import scrape_intl_yields
+    from src.scrapers.indicator.epu import scrape_epu
+    from src.scrapers.indicator.oil_curve import scrape_oil_curve
+    from src.scrapers.indicator.cot import scrape_cot
 
     r = MacroIndicatorsResult()
 
@@ -231,6 +293,91 @@ def _collect_scraped() -> MacroIndicatorsResult:
     ls = _safe_run("leading_sectors", scrape_leading_sectors)
     if ls:
         r.leading_sectors = str(ls.sectors)
+
+    # ── New macro/positioning indicators ─────────────────────────────────────
+
+    ry = _safe_run("real_yields", scrape_real_yields)
+    if ry:
+        r.real_yield_5y = ry.real_5y
+        r.real_yield_10y = ry.real_10y
+        r.data_dates["real_yield_5y"] = ry.date_5y
+        r.data_dates["real_yield_10y"] = ry.date_10y
+
+    b55 = _safe_run("breakeven_5y5y", scrape_breakeven_5y5y)
+    if b55:
+        r.breakeven_5y5y = b55.rate_pct
+        r.data_dates["breakeven_5y5y"] = b55.date
+
+    tga = _safe_run("tga", scrape_tga)
+    if tga:
+        r.tga_bln = tga.value_bln
+        r.data_dates["tga"] = tga.date
+
+    mv = _safe_run("move_index", scrape_move_index)
+    if mv:
+        r.move_index = mv.value
+        r.data_dates["move_index"] = mv.date
+
+    vts = _safe_run("vix_term_structure", scrape_vix_term_structure)
+    if vts:
+        r.vix3m = vts.vix3m
+        r.vix3m_vix_ratio = vts.ratio
+        r.data_dates["vix3m"] = vts.vix3m_date
+
+    aaii = _safe_run("aaii_sentiment", scrape_aaii_sentiment)
+    if aaii:
+        r.aaii_bull_pct = aaii.bull_pct
+        r.aaii_bear_pct = aaii.bear_pct
+        r.aaii_bull_bear_spread = aaii.bull_bear_spread
+        r.data_dates["aaii_sentiment"] = aaii.date
+
+    cpmi = _safe_run("china_pmi", scrape_china_pmi)
+    if cpmi:
+        r.china_nbs_mfg_pmi = cpmi.nbs_mfg_pmi
+        r.china_caixin_mfg_pmi = cpmi.caixin_mfg_pmi
+        if cpmi.nbs_date:
+            r.data_dates["china_nbs_pmi"] = cpmi.nbs_date
+
+    jolts = _safe_run("jolts", scrape_jolts)
+    if jolts:
+        r.jolts_quits_rate = jolts.quits_rate_pct
+        r.data_dates["jolts"] = jolts.date
+
+    cs = _safe_run("credit_spreads_ext", scrape_credit_spreads_ext)
+    if cs:
+        r.ig_spread = cs.ig_spread
+        r.ccc_spread = cs.ccc_spread
+        r.data_dates["ig_spread"] = cs.ig_date
+        if cs.ccc_date:
+            r.data_dates["ccc_spread"] = cs.ccc_date
+
+    iy = _safe_run("intl_yields", scrape_intl_yields)
+    if iy:
+        r.bund_10y = iy.bund_10y
+        r.jgb_10y = iy.jgb_10y
+        r.us_bund_spread = iy.us_bund_spread
+        r.data_dates["bund_10y"] = iy.bund_date
+        r.data_dates["jgb_10y"] = iy.jgb_date
+
+    epu = _safe_run("epu", scrape_epu)
+    if epu:
+        r.epu_index = epu.epu_index
+        r.data_dates["epu"] = epu.date
+
+    oc = _safe_run("oil_curve", scrape_oil_curve)
+    if oc:
+        r.wti_contango_pct = oc.contango_pct
+        r.data_dates["oil_curve"] = oc.date
+
+    cot = _safe_run("cot", scrape_cot)
+    if cot:
+        r.cot_sp500_net = cot.sp500_net
+        r.cot_tnote_10y_net = cot.tnote_10y_net
+        r.cot_eur_net = cot.eur_net
+        r.cot_jpy_net = cot.jpy_net
+        r.cot_usd_index_net = cot.usd_index_net
+        r.cot_gold_net = cot.gold_net
+        r.cot_report_date = cot.report_date
 
     return r
 
