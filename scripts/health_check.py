@@ -167,6 +167,19 @@ def _build_specs() -> list[Spec]:
     from src.scrapers.indicator.sp500_eps_growth import scrape_sp500_eps_growth
     from src.scrapers.indicator.eurostoxx50_fwd_eps import scrape_eurostoxx50_fwd_eps
     from src.scrapers.indicator.leading_sectors import scrape_leading_sectors
+    from src.scrapers.indicator.real_yields import scrape_real_yields
+    from src.scrapers.indicator.breakeven_5y5y import scrape_breakeven_5y5y
+    from src.scrapers.indicator.tga import scrape_tga
+    from src.scrapers.indicator.move_index import scrape_move_index
+    from src.scrapers.indicator.vix_term_structure import scrape_vix_term_structure
+    from src.scrapers.indicator.aaii_sentiment import scrape_aaii_sentiment
+    from src.scrapers.indicator.china_pmi import scrape_china_pmi
+    from src.scrapers.indicator.jolts import scrape_jolts
+    from src.scrapers.indicator.credit_spreads_ext import scrape_credit_spreads_ext
+    from src.scrapers.indicator.intl_yields import scrape_intl_yields
+    from src.scrapers.indicator.epu import scrape_epu
+    from src.scrapers.indicator.oil_curve import scrape_oil_curve
+    from src.scrapers.indicator.cot import scrape_cot
     from src.scrapers.news.ft_world import scrape_ft_world
     from src.scrapers.news.stonex import scrape_stonex
     from src.scrapers.news.tikr_blog import scrape_tikr_blog
@@ -293,6 +306,61 @@ def _build_specs() -> list[Spec]:
                  ", ".join(f"{s['sector']} {s.get('eps_growth_pct', '?')}%" for s in r.sectors[:2]),
                  r.date, _w(not r.sectors, "no sectors found"),
              ), stale_after_days=90),
+        Spec("real_yields", "indicator", scrape_real_yields,
+             lambda r: (f"5Y:{r.real_5y:+.3f}% 10Y:{r.real_10y:+.3f}%", r.date_10y,
+                        _w(not -5 < r.real_10y < 10, f"real 10Y {r.real_10y} out of [-5, 10]")),
+             stale_after_days=5),
+        Spec("breakeven_5y5y", "indicator", scrape_breakeven_5y5y,
+             lambda r: (f"{r.rate_pct:.3f}%", r.date,
+                        _w(not 0 < r.rate_pct < 8, f"5y5y {r.rate_pct} out of [0, 8]")),
+             stale_after_days=5),
+        Spec("tga", "indicator", scrape_tga,
+             lambda r: (f"${r.value_bln:.1f}B", r.date,
+                        _w(r.value_bln < 0, f"negative TGA balance {r.value_bln}B")),
+             stale_after_days=10),
+        Spec("move_index", "indicator", scrape_move_index,
+             lambda r: (f"{r.value:.1f}", r.date,
+                        _w(not 20 < r.value < 300, f"MOVE {r.value} out of [20, 300]")),
+             stale_after_days=3),
+        Spec("vix_term_structure", "indicator", scrape_vix_term_structure,
+             lambda r: (f"VIX3M:{r.vix3m:.2f} ratio:{r.ratio:.3f}", r.vix3m_date,
+                        _w(not 0.5 < r.ratio < 2, f"VIX3M/VIX ratio {r.ratio} out of [0.5, 2]")),
+             stale_after_days=3),
+        Spec("aaii_sentiment", "indicator", scrape_aaii_sentiment,
+             lambda r: (f"bull:{r.bull_pct:.1f}% bear:{r.bear_pct:.1f}% spread:{r.bull_bear_spread:+.1f}%", r.date,
+                        _w(not 0 <= r.bull_pct <= 100, f"bull_pct {r.bull_pct} out of [0, 100]")),
+             stale_after_days=10),
+        Spec("china_pmi", "indicator", scrape_china_pmi,
+             lambda r: (
+                 f"NBS:{r.nbs_mfg_pmi} Caixin:{r.caixin_mfg_pmi}", r.nbs_date or "—",
+                 _w(r.nbs_mfg_pmi is not None and not 30 < r.nbs_mfg_pmi < 70,
+                    f"NBS PMI {r.nbs_mfg_pmi} out of [30, 70]"),
+             ), stale_after_days=35),
+        Spec("jolts", "indicator", scrape_jolts,
+             lambda r: (f"{r.quits_rate_pct:.2f}%", r.date,
+                        _w(not 0.5 < r.quits_rate_pct < 6, f"quits rate {r.quits_rate_pct} out of [0.5, 6]")),
+             stale_after_days=45),
+        Spec("credit_spreads_ext", "indicator", scrape_credit_spreads_ext,
+             lambda r: (f"IG:{r.ig_spread:.3f} CCC:{r.ccc_spread}", r.ig_date,
+                        _w(not 0 < r.ig_spread < 10, f"IG spread {r.ig_spread} out of [0, 10]")),
+             stale_after_days=5),
+        Spec("intl_yields", "indicator", scrape_intl_yields,
+             lambda r: (f"Bund:{r.bund_10y:.3f}% JGB:{r.jgb_10y:.3f}% US-Bund:{r.us_bund_spread:+.3f}%",
+                        r.us10y_date,
+                        _w(not -5 < r.bund_10y < 15, f"Bund10Y {r.bund_10y} out of [-5, 15]")),
+             stale_after_days=35),
+        Spec("epu", "indicator", scrape_epu,
+             lambda r: (f"{r.epu_index:.1f}", r.date,
+                        _w(not 0 < r.epu_index < 1000, f"EPU {r.epu_index} out of [0, 1000]")),
+             stale_after_days=45),
+        Spec("oil_curve", "indicator", scrape_oil_curve,
+             lambda r: (f"front:{r.front_month_price:.1f} contango:{r.contango_pct:+.2f}%", r.date,
+                        _w(not -50 < r.contango_pct < 50, f"contango {r.contango_pct} out of [-50, 50]")),
+             stale_after_days=3),
+        Spec("cot", "indicator", scrape_cot,
+             lambda r: (f"SP500:{r.sp500_net:+,} Gold:{r.gold_net:+,}", r.report_date or "—",
+                        _w(r.sp500_net is None and r.gold_net is None, "all COT fields empty")),
+             stale_after_days=10),
 
         # ── News ─────────────────────────────────────────────────────────────
         Spec("ft_world", "news", scrape_ft_world,
