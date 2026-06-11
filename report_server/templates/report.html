@@ -558,6 +558,36 @@
 
         .analyst-note .section-title { position: relative; z-index: 1; }
 
+        /* ── Tech discoveries ──────────────────────────────────────────────── */
+        .tech-section { margin-bottom: 3rem; }
+
+        .tech-item {
+            border-left: 3px solid var(--ink-navy);
+            background: var(--paper-light);
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--shadow-paper);
+        }
+
+        .tech-item h3 {
+            font-family: var(--font-heading);
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+
+        .tech-item p {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--ink-light);
+        }
+
+        .tech-item .tech-impact {
+            margin-top: 0.4rem;
+            font-style: italic;
+            color: var(--ink-navy);
+        }
+
         /* ── Performance table ─────────────────────────────────────────────── */
         .performance-section {
             margin-top: 3rem;
@@ -756,6 +786,20 @@
                 <p>{{ para.strip() }}</p>
                 {% endfor %}
             </div>
+
+            <!-- TECH DISCOVERIES -->
+            {% if report.tech_discoveries %}
+            <div class="tech-section">
+                <h2 class="section-title">Tech Discoveries</h2>
+                {% for d in report.tech_discoveries %}
+                <div class="tech-item">
+                    <h3>{{ d.title }}</h3>
+                    <p>{{ d.summary }}</p>
+                    {% if d.impact %}<p class="tech-impact">{{ d.impact }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
 
             <!-- PERFORMANCE TABLE: variations -->
             <div class="performance-section">

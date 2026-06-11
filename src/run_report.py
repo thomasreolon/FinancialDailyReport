@@ -58,6 +58,7 @@ def _build_combined(bundle) -> dict:
         "news": _to_dict(bundle.news),
         "market_overview": _to_dict(bundle.overview),
         "macro_snapshot": _to_dict(bundle.macro_snapshot),
+        "tech_discoveries": _to_dict(bundle.tech),
     }
 
 

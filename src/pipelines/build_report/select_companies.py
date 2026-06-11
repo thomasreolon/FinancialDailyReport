@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from src.pipelines.screened_stocks import PipelineResult, ScreenedCompany
+from src.pipelines.screened_stocks import PipelineResult, ScreenedCompany, is_liquid_ticker
 
 CompaniesSentiment = Literal["BEARISH", "NEUTRAL", "BULLISH"]
 
@@ -68,6 +68,12 @@ def _pick_best(pool: list[ScreenedCompany], key) -> ScreenedCompany | None:
     return max(pool, key=key)
 
 
+def _is_liquid(company: ScreenedCompany) -> bool:
+    """Filter out picks that historically hurt the track record (see
+    is_liquid_ticker in screened_stocks for the rule)."""
+    return is_liquid_ticker(company.ticker, company.yahoo.market_cap)
+
+
 def select_top_companies(result: PipelineResult, n: int = 3) -> list[ScreenedCompany]:
     """Pick top-n with three distinct ranking strategies (when n >= 3).
 
@@ -75,9 +81,12 @@ def select_top_companies(result: PipelineResult, n: int = 3) -> list[ScreenedCom
     2nd (center): highest heuristic_score among remaining
     3rd (right): highest combined_score among remaining
 
-    Falls back to heuristic ordering when NN scores are missing.
+    Only liquid companies (primary listing, >$500M cap) are considered unless
+    that would leave fewer than n candidates. Falls back to heuristic ordering
+    when NN scores are missing.
     """
-    remaining = list(result.companies)
+    liquid = [c for c in result.companies if _is_liquid(c)]
+    remaining = liquid if len(liquid) >= n else list(result.companies)
     picks: list[ScreenedCompany] = []
 
     if n >= 1:
@@ -109,14 +118,28 @@ def select_top_companies(result: PipelineResult, n: int = 3) -> list[ScreenedCom
     return picks
 
 
-def companies_nn_sentiment(picks: list[ScreenedCompany]) -> CompaniesSentiment:
-    """NN outlook tag from mean nn_score of selected companies."""
-    scores = [c.nn_score for c in picks if c.nn_score is not None]
-    if not scores:
+def companies_nn_sentiment(companies: list[ScreenedCompany]) -> CompaniesSentiment:
+    """Breadth-based NN outlook across ALL scored companies.
+
+    The old rule (mean nn_score of the 3 picks vs fixed thresholds) tracked the
+    score scale, not the market: top picks are extremes, so the tag was BULLISH
+    almost whenever any pick had a positive prediction. Backtest on the
+    2026-05-25 / 06-02 / 06-09 archives: breadth (share of screened companies
+    with a positive predicted 1y return) called the subsequent SPY direction
+    correctly on all three days, while the pick-mean rule was wrong on two.
+    """
+    preds = [
+        c.nn_predictions["return_1y_pct"]
+        for c in companies
+        if c.nn_predictions and "return_1y_pct" in c.nn_predictions
+    ]
+    if not preds:
         return "NEUTRAL"
-    avg = sum(scores) / len(scores)
-    if avg < 0.01:
+    preds.sort()
+    pos_share = sum(1 for p in preds if p > 0) / len(preds)
+    median = preds[len(preds) // 2]
+    if pos_share <= 0.35 or median <= -5.0:
         return "BEARISH"
-    if avg > 0.12:
+    if pos_share >= 0.55 and median >= 2.0:
         return "BULLISH"
     return "NEUTRAL"

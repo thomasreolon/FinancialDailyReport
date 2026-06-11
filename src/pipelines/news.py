@@ -3,6 +3,8 @@ News pipeline.
 
 Collects market news and analysis from multiple sources, enriches with Gemini LLM:
   - fx_summary:     Gemini summary of the latest @fxevolutionvideo YouTube transcript
+  - macro_summary:  Gemini summary of the latest @DefiantGatekeeper weekly macro video
+                    (ex-investment banker; oil/10Y/FedWatch framework)
   - financial_news: FT World headlines (FTWorldResult)
   - stonex_news:    StoneX daily market analysis (StoneXResult)
   - tikr_news:      TIKR blog posts (TIKRBlogResult)
@@ -17,13 +19,14 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from src.api.gemini import generate, generate_with_search
+from src.api.gemini import generate_lite, generate_with_search
 from src.scrapers.news.ft_world import FTWorldResult, scrape_ft_world
 from src.scrapers.news.stonex import StoneXResult, scrape_stonex
 from src.scrapers.news.tikr_blog import TIKRBlogResult, scrape_tikr_blog
 from src.scrapers.news.yt_scraper import YTScraper
 
 _FX_CHANNEL = "@fxevolutionvideo"
+_MACRO_CHANNEL = "@DefiantGatekeeper"
 
 _FX_SUMMARY_PROMPT = """You are a financial analyst assistant.
 Below is the transcript of a recent market analysis video from FX Evolution.
@@ -32,6 +35,25 @@ Write a concise summary (200-300 words) covering:
 - Notable currencies, commodities, or indices mentioned
 - Any trade setups or directional views expressed
 - Important economic events or data mentioned
+
+Transcript:
+{transcript}
+"""
+
+_MACRO_SUMMARY_PROMPT = """You are a financial analyst assistant.
+Below is the transcript of the latest weekly market review from an ex-investment
+banker (credit PE/hedge fund background). His framework tracks a small set of
+macro dials and the narrative they form.
+
+Write a structured summary (200-300 words) that extracts, when present:
+- Oil price level and direction, and what he infers from it
+- 10Y Treasury yield level/direction and what triggered moves
+- FedWatch rate hike/cut probabilities AND how they changed week-over-week
+- Labor/inflation data readouts and how he maps them to the Fed path
+- Key earnings or guidance (especially AI/semiconductor bellwethers) and his read
+- His overall directional stance for the coming weeks and the risks he flags
+
+Report numbers exactly as stated. If a topic is not discussed, omit it.
 
 Transcript:
 {transcript}
@@ -51,6 +73,7 @@ Be specific with dates, figures, and company/index names where available.
 
 class NewsPipelineResult(BaseModel):
     fx_summary: str | None
+    macro_summary: str | None = None
     financial_news: FTWorldResult | None
     stonex_news: StoneXResult | None
     tikr_news: TIKRBlogResult | None
@@ -59,6 +82,7 @@ class NewsPipelineResult(BaseModel):
 
 def run_pipeline(verbose: bool = True) -> NewsPipelineResult:
     fx_summary: str | None = None
+    macro_summary: str | None = None
     financial_news: FTWorldResult | None = None
     stonex_news: StoneXResult | None = None
     tikr_news: TIKRBlogResult | None = None
@@ -72,7 +96,7 @@ def run_pipeline(verbose: bool = True) -> NewsPipelineResult:
         if yt_result:
             if verbose:
                 print(f"ok ({len(yt_result.transcript)} chars)  gemini summary...", end=" ", flush=True)
-            fx_summary = generate(
+            fx_summary = generate_lite(
                 _FX_SUMMARY_PROMPT.format(transcript=yt_result.transcript)
             )
             if verbose:
@@ -80,6 +104,27 @@ def run_pipeline(verbose: bool = True) -> NewsPipelineResult:
         else:
             if verbose:
                 print("no video in last 24h")
+    except Exception as e:
+        if verbose:
+            print(f"FAILED ({e})")
+
+    # ── Defiant Gatekeeper weekly macro review ────────────────────────────────
+    if verbose:
+        print("  defiant_gatekeeper transcript...", end=" ", flush=True)
+    try:
+        # Weekly uploads: a video from the past 7 days stays relevant all week.
+        yt_result = YTScraper(hours=7 * 24, channel=_MACRO_CHANNEL).scrape()
+        if yt_result:
+            if verbose:
+                print(f"ok ({len(yt_result.transcript)} chars)  gemini summary...", end=" ", flush=True)
+            macro_summary = generate_lite(
+                _MACRO_SUMMARY_PROMPT.format(transcript=yt_result.transcript)
+            )
+            if verbose:
+                print("ok")
+        else:
+            if verbose:
+                print("no video in last 7d")
     except Exception as e:
         if verbose:
             print(f"FAILED ({e})")
@@ -131,6 +176,7 @@ def run_pipeline(verbose: bool = True) -> NewsPipelineResult:
 
     return NewsPipelineResult(
         fx_summary=fx_summary,
+        macro_summary=macro_summary,
         financial_news=financial_news,
         stonex_news=stonex_news,
         tikr_news=tikr_news,

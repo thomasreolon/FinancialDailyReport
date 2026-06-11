@@ -11,14 +11,17 @@ def list_channel_videos(channel_url: str, max_videos: int = 5) -> list[dict]:
     url = channel_url if "/videos" in channel_url else channel_url.rstrip("/") + "/videos"
     cmd = [
         "yt-dlp",
+        "--ignore-errors",
         "--playlist-end", str(max_videos),
         "--skip-download",
         "--print", "%(.{id,title,upload_date,webpage_url})j",
         url,
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        if result.returncode != 0:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        # yt-dlp exits non-zero when ANY entry fails (e.g. a members-only
+        # video in the feed); keep the entries that were printed anyway.
+        if not result.stdout.strip():
             return []
         videos = []
         for line in result.stdout.strip().splitlines():

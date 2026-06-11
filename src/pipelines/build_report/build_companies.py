@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.api.gemini import generate
+from src.api.gemini import generate_lite
 from src.pipelines.screened_stocks import ScreenedCompany
 from src.pipelines.build_report.models import ChartPoint, CompanyReport
 
@@ -102,9 +102,13 @@ def build_companies(companies: list[ScreenedCompany]) -> list[CompanyReport]:
         )
 
         try:
-            text = generate(prompt)
+            text = generate_lite(prompt)
         except Exception as exc:
-            text = f"[LLM generation failed: {exc}]"
+            print(f"  [build_companies] blurb generation failed for {company.ticker}: {exc}")
+            text = (
+                f"{yahoo.name or company.ticker}: commento automatico non disponibile "
+                "per questa edizione. I dati finanziari della scheda restano validi."
+            )
 
         result.append(CompanyReport(
             ticker=company.ticker,

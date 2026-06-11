@@ -45,6 +45,19 @@ _EXCHANGE_MAP: dict[str, str | None] = {
 }
 
 
+_MIN_LIQUID_MARKET_CAP = 500e6
+
+
+def is_liquid_ticker(ticker: str, market_cap: float | None) -> bool:
+    """Liquidity guard shared by selection and enrichment: excludes OTC foreign
+    ADRs (5-letter tickers ending in F/Y, e.g. AYALY, AGGZF) and sub-$500M caps
+    — thin books, stale quotes, unreliable analyst coverage."""
+    t = ticker.upper()
+    if len(t) == 5 and t[-1] in ("F", "Y"):
+        return False
+    return market_cap is not None and market_cap >= _MIN_LIQUID_MARKET_CAP
+
+
 class ScreenedCompany(BaseModel):
     ticker: str
     sources: list[str] = Field(description="Screeners that flagged this ticker")
@@ -166,29 +179,37 @@ def run_pipeline(verbose: bool = True) -> PipelineResult:
             failed.append(ticker)
             continue
 
-        if verbose:
-            print("ok  anachart...", end=" ", flush=True)
-
         anachart: AnaChartResult | None = None
-        try:
-            anachart = scrape_anachart(ticker)
-        except Exception:
-            pass
-
-        if verbose:
-            print("ok  marketbeat...", end=" ", flush=True)
-
         marketbeat: MarketBeatForecastResult | None = None
-        exchange = _marketbeat_exchange(yahoo)
-        if exchange:
+
+        # Illiquid tickers can never be selected (liquidity guard in
+        # select_companies) and the NN only needs the Yahoo profile — skip the
+        # expensive analyst scrapes (web_fetcher tiers / scrape.do credits).
+        if not is_liquid_ticker(ticker, yahoo.market_cap):
+            if verbose:
+                print("ok  (illiquid — analyst enrichment skipped)")
+        else:
+            if verbose:
+                print("ok  anachart...", end=" ", flush=True)
+
             try:
-                marketbeat = scrape_marketbeat_forecast(ticker, exchange)
+                anachart = scrape_anachart(ticker)
             except Exception:
                 pass
 
-        if verbose:
-            mb_status = "ok" if marketbeat else ("skipped" if not exchange else "failed")
-            print(mb_status)
+            if verbose:
+                print("ok  marketbeat...", end=" ", flush=True)
+
+            exchange = _marketbeat_exchange(yahoo)
+            if exchange:
+                try:
+                    marketbeat = scrape_marketbeat_forecast(ticker, exchange)
+                except Exception:
+                    pass
+
+            if verbose:
+                mb_status = "ok" if marketbeat else ("skipped" if not exchange else "failed")
+                print(mb_status)
 
         companies.append(ScreenedCompany(
             ticker=ticker,

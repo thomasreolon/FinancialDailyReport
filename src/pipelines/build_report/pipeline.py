@@ -38,6 +38,7 @@ class PipelineBundle:
     screened: object         # PipelineResult (screened_stocks)
     overview: object         # MarketOverviewResult
     macro_snapshot: object   # MacroSnapshot (for the ff_analysis model)
+    tech: object             # TechDiscoveriesResult
 
 
 def _cached(name: str, fn, force: bool, verbose: bool) -> object:
@@ -81,6 +82,14 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         _log(f"market_overview failed ({exc}) — variations will be empty")
         overview = MarketOverviewResult(groups=[])
 
+    _log("Running tech_discoveries pipeline...")
+    from src.pipelines.tech_discoveries import TechDiscoveriesResult, run_pipeline as _run_tech
+    try:
+        tech = _cached("tech_discoveries", lambda: _run_tech(verbose=verbose), force, verbose)
+    except Exception as exc:
+        _log(f"tech_discoveries failed ({exc}) — section will be empty")
+        tech = TechDiscoveriesResult()
+
     _log("Fetching macro snapshot (ff_analysis model inputs)...")
     from src.scrapers.technical.macro_snapshot import MacroSnapshot, scrape_macro_snapshot
     try:
@@ -106,7 +115,10 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
 
     # ── select top 3 companies ─────────────────────────────────────────────────
     top3 = select_top_companies(screened, n=3)
-    companies_sentiment = companies_nn_sentiment(top3)
+    # Breadth sentiment is computed over ALL scored companies, not the picks:
+    # picks are extremes by construction, so their mean tracks the score scale
+    # rather than the market (see companies_nn_sentiment docstring).
+    companies_sentiment = companies_nn_sentiment(screened.companies)
     if verbose:
         print(f"  Top 3 selected: {[c.ticker for c in top3]} ({companies_sentiment})")
 
@@ -128,7 +140,7 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
     title, article = build_title_article(news)
 
     _log("Building article 2 (macro view)...")
-    title2, article2 = build_title2_article2(indicators, companies, macro)
+    title2, article2 = build_title2_article2(indicators, companies, macro, news)
 
     _log("Building Personal View...")
     try:
@@ -155,6 +167,7 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         generated_at=datetime.now(timezone.utc).isoformat(),
         personal_view=personal_view,
         market_compare=market_compare,
+        tech_discoveries=tech.discoveries,
     )
     return PipelineBundle(
         report=report,
@@ -163,4 +176,5 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         screened=screened,
         overview=overview,
         macro_snapshot=macro_snap,
+        tech=tech,
     )

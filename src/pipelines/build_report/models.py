@@ -54,6 +54,12 @@ class PersonalView(BaseModel):
     article: str
 
 
+class TechDiscovery(BaseModel):
+    title: str
+    summary: str
+    impact: str | None = None
+
+
 class BenchmarkQuote(BaseModel):
     symbol: str
     name: str
@@ -72,3 +78,4 @@ class DailyReport(BaseModel):
     generated_at: str
     personal_view: PersonalView | None = None
     market_compare: list[BenchmarkQuote] = Field(default_factory=list)
+    tech_discoveries: list[TechDiscovery] = Field(default_factory=list)
