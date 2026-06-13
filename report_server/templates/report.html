@@ -787,20 +787,6 @@
                 {% endfor %}
             </div>
 
-            <!-- TECH DISCOVERIES -->
-            {% if report.tech_discoveries %}
-            <div class="tech-section">
-                <h2 class="section-title">Tech Discoveries</h2>
-                {% for d in report.tech_discoveries %}
-                <div class="tech-item">
-                    <h3>{{ d.title }}</h3>
-                    <p>{{ d.summary }}</p>
-                    {% if d.impact %}<p class="tech-impact">{{ d.impact }}</p>{% endif %}
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-
             <!-- PERFORMANCE TABLE: variations -->
             <div class="performance-section">
                 <h2 class="section-title">Global Asset Performance</h2>
@@ -830,6 +816,20 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- TECH DISCOVERIES -->
+            {% if report.tech_discoveries %}
+            <div class="tech-section">
+                <h2 class="section-title">Tech Discoveries</h2>
+                {% for d in report.tech_discoveries %}
+                <div class="tech-item">
+                    <h3>{{ d.title }}</h3>
+                    <p>{{ d.summary }}</p>
+                    {% if d.impact %}<p class="tech-impact">{{ d.impact }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
 
         </div><!-- .content-col -->
 

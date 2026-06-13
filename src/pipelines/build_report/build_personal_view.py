@@ -169,9 +169,12 @@ def build_personal_view(
     try:
         text = generate(prompt)
     except Exception as exc:
+        # Never publish a raw error string into the UI — the central Gemini
+        # router already retried transient failures, so fall back to clean text.
+        print(f"  [build_personal_view] generation failed: {exc}")
         return PersonalView(
             title="Personal View",
-            article=f"[Generazione LLM fallita: {exc}]",
+            article="La nota personale non è disponibile per questa edizione.",
         )
 
     title, article = _parse_response(text)
