@@ -1,9 +1,15 @@
 """
 Yahoo Finance spark scraper — market overview across ~50 ETFs.
 
-One batch call to /v7/finance/spark fetches 3 years of daily prices for all
+One batch call to /v7/finance/spark fetches 5 years of daily prices for all
 symbols, from which six standard period returns are computed:
   Today, 5 Days, 1 Month, YTD, 1 Year, 3 Years
+
+The 5y fetch window (rather than exactly 3y) is intentional: it keeps a
+buffer of data before the "3 years ago" lookup date. With an exact 3y
+fetch, the earliest bar sits right at (or after, intraday) the 3-year
+target timestamp, so `_price_at`'s "on or before" lookup frequently finds
+nothing and three_year_pct comes back None.
 
 Groupings mirror the SeekAlpha market overview layout.
 Note: IFLN from the SeekAlpha layout does not resolve as a major ETF;
@@ -191,7 +197,7 @@ def _fetch_batch(session: cf_requests.Session, symbols: list[str], timeout: int)
         headers=_HEADERS,
         params={
             "symbols": ",".join(symbols),
-            "range": "3y",
+            "range": "5y",
             "interval": "1d",
             "includePrePost": "false",
         },
