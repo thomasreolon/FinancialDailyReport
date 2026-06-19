@@ -637,6 +637,11 @@
 
         .perf-val { font-weight: 700; }
 
+        .now-tooltip {
+            cursor: help;
+            border-bottom: 1px dotted var(--ink-faded);
+        }
+
         /* ── Modal ─────────────────────────────────────────────────────────── */
         .modal-overlay {
             position: fixed; inset: 0;
@@ -799,6 +804,7 @@
                             <th>1 Month</th>
                             <th>1 Year</th>
                             <th>3 Years</th>
+                            <th><span class="now-tooltip" title="*15 mins delayed">Now*</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -811,6 +817,7 @@
                             <td class="perf-val {{ p.one_month | pct_class }}">{{ p.one_month | fmt_pct }}</td>
                             <td class="perf-val {{ p.one_year | pct_class }}">{{ p.one_year | fmt_pct }}</td>
                             <td class="perf-val {{ p.three_years | pct_class }}">{{ p.three_years | fmt_pct }}</td>
+                            <td class="perf-val" id="live-var-{{ v.symbol }}">—</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -903,6 +910,7 @@
     // ── Company modal data ─────────────────────────────────────────────────────
     const companiesData = {{ report.companies | tojson }};
     const benchmarksData = {{ (report.market_compare or []) | tojson }};
+    const variationsData = {{ (report.variations or []) | tojson }};
 
     function openModal(title, content) {
         document.getElementById('modal-title').textContent = title;
@@ -944,7 +952,8 @@
     const _priceRefs = {};
     for (const c of companiesData) _priceRefs[c.ticker] = { ref: c.price, prefix: '$' };
     for (const b of benchmarksData) _priceRefs[b.symbol] = { ref: b.price, prefix: '' };
-    const _tickers = Object.keys(_priceRefs);
+    const _variationTickers = variationsData.map(v => v.symbol);
+    const _tickers = Array.from(new Set([...Object.keys(_priceRefs), ..._variationTickers]));
 
     async function fetchLivePrices() {
         if (!_tickers.length) return;
@@ -961,18 +970,21 @@
                 if (live == null) continue;
 
                 const meta = _priceRefs[ticker];
-                if (!meta) continue;
+                if (meta) {
+                    const liveEl  = document.getElementById('live-' + ticker);
+                    const deltaEl = document.getElementById('delta-' + ticker);
+                    if (liveEl) liveEl.textContent = meta.prefix + live.toFixed(2);
 
-                const liveEl  = document.getElementById('live-' + ticker);
-                const deltaEl = document.getElementById('delta-' + ticker);
-                if (liveEl) liveEl.textContent = meta.prefix + live.toFixed(2);
-
-                if (deltaEl && meta.ref != null && meta.ref !== 0) {
-                    const pct = ((live - meta.ref) / meta.ref) * 100;
-                    const sign = pct >= 0 ? '+' : '';
-                    deltaEl.textContent = sign + pct.toFixed(2) + '%';
-                    deltaEl.style.color = pct >= 0 ? 'var(--ink-green)' : 'var(--ink-accent)';
+                    if (deltaEl && meta.ref != null && meta.ref !== 0) {
+                        const pct = ((live - meta.ref) / meta.ref) * 100;
+                        const sign = pct >= 0 ? '+' : '';
+                        deltaEl.textContent = sign + pct.toFixed(2) + '%';
+                        deltaEl.style.color = pct >= 0 ? 'var(--ink-green)' : 'var(--ink-accent)';
+                    }
                 }
+
+                const liveVarEl = document.getElementById('live-var-' + ticker);
+                if (liveVarEl) liveVarEl.textContent = live.toFixed(2);
             }
         } catch (e) {
             // silently ignore network errors — price display degrades gracefully
