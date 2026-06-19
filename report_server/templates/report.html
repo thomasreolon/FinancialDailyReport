@@ -812,12 +812,16 @@
                         {% set p = v.periods %}
                         <tr>
                             <td class="asset-name">{{ v.name }}<span class="asset-symbol">({{ v.symbol }})</span></td>
-                            <td class="perf-val {{ p.one_day | pct_class }}">{{ p.one_day | fmt_pct }}</td>
-                            <td class="perf-val {{ p.five_days | pct_class }}">{{ p.five_days | fmt_pct }}</td>
-                            <td class="perf-val {{ p.one_month | pct_class }}">{{ p.one_month | fmt_pct }}</td>
-                            <td class="perf-val {{ p.one_year | pct_class }}">{{ p.one_year | fmt_pct }}</td>
-                            <td class="perf-val {{ p.three_years | pct_class }}">{{ p.three_years | fmt_pct }}</td>
+                            <td class="perf-val {{ p.one_day | pct_class(v.invert_color) }}">{{ p.one_day | fmt_pct }}</td>
+                            <td class="perf-val {{ p.five_days | pct_class(v.invert_color) }}">{{ p.five_days | fmt_pct }}</td>
+                            <td class="perf-val {{ p.one_month | pct_class(v.invert_color) }}">{{ p.one_month | fmt_pct }}</td>
+                            <td class="perf-val {{ p.one_year | pct_class(v.invert_color) }}">{{ p.one_year | fmt_pct }}</td>
+                            <td class="perf-val {{ p.three_years | pct_class(v.invert_color) }}">{{ p.three_years | fmt_pct }}</td>
+                            {% if v.now_value is not none %}
+                            <td class="perf-val" id="live-var-{{ v.symbol }}"><span title="Daily close (not real-time)">{{ "%.2f"|format(v.now_value) }}{{ v.now_suffix }}</span></td>
+                            {% else %}
                             <td class="perf-val" id="live-var-{{ v.symbol }}">—</td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -952,7 +956,7 @@
     const _priceRefs = {};
     for (const c of companiesData) _priceRefs[c.ticker] = { ref: c.price, prefix: '$' };
     for (const b of benchmarksData) _priceRefs[b.symbol] = { ref: b.price, prefix: '' };
-    const _variationTickers = variationsData.map(v => v.symbol);
+    const _variationTickers = variationsData.filter(v => v.now_value == null).map(v => v.symbol);
     const _tickers = Array.from(new Set([...Object.keys(_priceRefs), ..._variationTickers]));
 
     async function fetchLivePrices() {

@@ -118,10 +118,13 @@ def _fmt_ind(v: float | None, unit: str = "") -> str:
     return f"{v:.6f}"
 
 
-def _pct_class(v: float | None) -> str:
+def _pct_class(v: float | None, invert: bool = False) -> str:
     if v is None:
         return ""
-    return "ink-up" if v >= 0 else "ink-down"
+    up = v >= 0
+    if invert:
+        up = not up
+    return "ink-up" if up else "ink-down"
 
 
 templates.env.filters["fmt_pct"] = _fmt_pct

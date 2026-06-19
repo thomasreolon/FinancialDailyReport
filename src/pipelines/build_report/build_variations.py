@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.pipelines.build_report.models import AssetVariation, VariationPeriods
+from src.scrapers.technical.cds import CDSPerformance
 from src.scrapers.technical.market_overview import ETFPerformance, MarketOverviewResult
 
 # Ordered thematically: global equities → countries → bonds → commodities → FX.
@@ -22,7 +23,10 @@ _TARGET: list[tuple[str, str]] = [
 ]
 
 
-def build_variations(overview: MarketOverviewResult) -> list[AssetVariation]:
+def build_variations(
+    overview: MarketOverviewResult,
+    cds: list[CDSPerformance] | None = None,
+) -> list[AssetVariation]:
     perf_map: dict[str, ETFPerformance] = {
         etf.symbol: etf
         for group in overview.groups
@@ -46,4 +50,17 @@ def build_variations(overview: MarketOverviewResult) -> list[AssetVariation]:
                 one_year=None, three_years=None,
             )
         result.append(AssetVariation(symbol=symbol, name=name, periods=periods))
+
+    for c in cds or []:
+        periods = VariationPeriods(
+            one_day=c.today_pct,
+            five_days=c.five_day_pct,
+            one_month=c.one_month_pct,
+            one_year=c.one_year_pct,
+            three_years=c.three_year_pct,
+        )
+        result.append(AssetVariation(
+            symbol=c.symbol, name=c.name, periods=periods,
+            invert_color=True, now_value=c.current_bp, now_suffix=" bp",
+        ))
     return result

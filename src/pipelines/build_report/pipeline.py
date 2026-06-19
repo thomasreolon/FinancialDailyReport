@@ -82,6 +82,14 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
         _log(f"market_overview failed ({exc}) — variations will be empty")
         overview = MarketOverviewResult(groups=[])
 
+    _log("Fetching sovereign CDS spreads...")
+    from src.scrapers.technical.cds import scrape_sovereign_cds
+    try:
+        cds = _cached("sovereign_cds", scrape_sovereign_cds, force, verbose)
+    except Exception as exc:
+        _log(f"sovereign_cds failed ({exc}) — CDS rows will be empty")
+        cds = []
+
     _log("Running tech_discoveries pipeline...")
     from src.pipelines.tech_discoveries import TechDiscoveriesResult, run_pipeline as _run_tech
     try:
@@ -130,7 +138,7 @@ def run_pipeline(verbose: bool = True, force: bool = False) -> PipelineBundle:
     companies = build_companies(top3)
 
     _log("Building variations section...")
-    variations = build_variations(overview)
+    variations = build_variations(overview, cds)
 
     _log("Building market_compare benchmarks (VWCE/SPY)...")
     market_compare = build_market_compare()

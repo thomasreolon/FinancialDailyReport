@@ -198,6 +198,7 @@ def _build_specs() -> list[Spec]:
     from src.scrapers.stock.yahoo import scrape_yahoo_profile
     from src.scrapers.analyst.anachart import scrape_anachart
     from src.scrapers.analyst.marketbeat import scrape_marketbeat_forecast
+    from src.scrapers.technical.cds import scrape_sovereign_cds
     from src.scrapers.technical.market_overview import scrape_market_overview
     from src.scrapers.technical.sentiment_outlook import scrape_sentiment_outlook
 
@@ -449,6 +450,16 @@ def _build_specs() -> list[Spec]:
              lambda r: (f"{r.count} entries", "—",
                         _w(r.count == 0, "no sentiment entries")),
              stale_after_days=999),
+        Spec("sovereign_cds", "technical", scrape_sovereign_cds,
+             lambda r: (
+                 f"{sum(1 for c in r if c.current_bp is not None)}/{len(r)} countries",
+                 "—",
+                 _w(any(c.current_bp is None for c in r), "one or more CDS series returned no data")
+                 + _w(
+                     any(c.current_bp is not None and not (0 < c.current_bp < 1000) for c in r),
+                     "CDS value out of expected range [0, 1000bp]",
+                 ),
+             ), stale_after_days=999),
     ]
 
 

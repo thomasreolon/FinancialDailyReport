@@ -47,6 +47,14 @@ class AssetVariation(BaseModel):
     symbol: str
     name: str
     periods: VariationPeriods
+    # CDS rows only: a rising spread means rising credit risk (bad), the
+    # opposite of a rising price — period cells should color inverted.
+    invert_color: bool = False
+    # CDS rows only: static current value (basis points) shown in the "Now"
+    # column. ETF rows leave this None and get a live Yahoo price via JS
+    # instead (no live feed exists for CDS spreads).
+    now_value: float | None = None
+    now_suffix: str = ""
 
 
 class PersonalView(BaseModel):
