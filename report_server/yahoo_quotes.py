@@ -50,7 +50,7 @@ def parse_symbols_param(symbols_csv: str) -> list[str]:
 
 def fetch_spark_prices(symbols: list[str]) -> list[dict]:
     """
-    Returns Yahoo-shaped dicts: [{"symbol": "AAPL", "regularMarketPrice": 123.45}, ...].
+    Returns Yahoo-shaped dicts: [{"symbol": "AAPL", "regularMarketPrice": 123.45, "regularMarketChangePercent": 1.2}, ...].
     On HTTP/network failure returns [].
     """
     if not symbols:
@@ -86,7 +86,21 @@ def fetch_spark_prices(symbols: list[str]) -> list[dict]:
         if price is None:
             continue
         try:
-            out.append({"symbol": sym, "regularMarketPrice": float(price)})
+            price_val = float(price)
+            prev = meta.get("previousClose") or meta.get("chartPreviousClose")
+            change_pct = None
+            if prev is not None:
+                prev_val = float(prev)
+                if prev_val != 0:
+                    change_pct = ((price_val - prev_val) / prev_val) * 100
+
+            item = {
+                "symbol": sym,
+                "regularMarketPrice": price_val,
+            }
+            if change_pct is not None:
+                item["regularMarketChangePercent"] = change_pct
+            out.append(item)
         except (TypeError, ValueError):
             continue
     return out
