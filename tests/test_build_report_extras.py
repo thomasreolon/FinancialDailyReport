@@ -44,3 +44,47 @@ def test_fmt_deltas_with_previous_run():
 def test_fmt_deltas_no_archive():
     out = _fmt_deltas(MacroIndicatorsResult(vix=20.0), [])
     assert out.startswith("N/A")
+
+
+def test_gcs_normalise_old_report():
+    from report_server.gcs import _normalise
+
+    old_report = {
+        "report": {
+            "title": "Old Report Title",
+            "article": "Body of the old report.",
+            "title2": "Macro View",
+            "article2": "Body of macro view.",
+            "generated_at": "2026-06-01T09:00:00",
+            "variations": [
+                {
+                    "symbol": "SPY",
+                    "name": "S&P 500 ETF",
+                    "periods": {
+                        "one_day": 0.015,
+                        "five_days": 0.02,
+                        "one_month": 0.05,
+                        "one_year": 0.15,
+                        "three_years": 0.35,
+                    }
+                }
+            ]
+        }
+    }
+
+    normalised = _normalise(old_report)
+    
+    # Check that normalisation succeeded and populated defaults
+    assert "report" in normalised
+    rep = normalised["report"]
+    assert rep["title"] == "Old Report Title"
+    
+    variations = rep["variations"]
+    assert len(variations) == 1
+    v = variations[0]
+    assert v["symbol"] == "SPY"
+    # These fields were not in old_report, but should be filled with defaults
+    assert v["invert_color"] is False
+    assert v["now_value"] is None
+    assert v["now_suffix"] == ""
+

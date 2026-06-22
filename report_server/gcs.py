@@ -7,6 +7,12 @@
 - shell_date_options(): up to five newest dates for the nav dropdown, with
   fallback probing when list_blobs fails, and includes the current URL date
   when it is outside that set.
+
+Older stored reports may be missing fields introduced in later schema
+versions. All loaded data is normalised through the Pydantic DailyReport
+model so that every response the server serves has every field present
+(defaults filled in), keeping older journals renderable by the current
+template.
 """
 from __future__ import annotations
 
@@ -23,13 +29,30 @@ _TTL = 300.0  # seconds
 _ttl_cache: dict[str, tuple[float, dict | None]] = {}
 
 
+def _normalise(raw: dict) -> dict:
+    """Fill in Pydantic-model defaults so old reports are renderable by the
+    current template even when they predate recently added fields."""
+    try:
+        from src.pipelines.build_report.models import DailyReport  # type: ignore
+        report_data = raw.get("report", raw)
+        normalised = DailyReport.model_validate(report_data).model_dump()
+        # Preserve the original top-level wrapper if it existed
+        if "report" in raw:
+            return {**raw, "report": normalised}
+        return normalised
+    except Exception as exc:
+        print(f"[warn] report normalisation failed: {exc}")
+        return raw
+
+
 def _gcs_fetch(blob_name: str) -> dict | None:
     try:
         from google.cloud import storage  # type: ignore
         blob = storage.Client().bucket(_BUCKET).blob(blob_name)
         if not blob.exists():
             return None
-        return json.loads(blob.download_as_text())
+        raw = json.loads(blob.download_as_text())
+        return _normalise(raw)
     except Exception as exc:
         print(f"[warn] GCS fetch failed ({blob_name}): {exc}")
         return None
@@ -101,7 +124,8 @@ def find_latest() -> dict | None:
         )
         for b in blobs:
             try:
-                return json.loads(b.download_as_text())
+                raw = json.loads(b.download_as_text())
+                return _normalise(raw)
             except Exception:
                 continue
     except Exception as exc:
