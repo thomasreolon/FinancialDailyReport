@@ -804,7 +804,9 @@
                             <th>1 Month</th>
                             <th>1 Year</th>
                             <th>3 Years</th>
+                            {% if is_today %}
                             <th><span class="now-tooltip" title="*15 mins delayed">Now*</span></th>
+                            {% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -817,15 +819,17 @@
                             <td class="perf-val {{ p.one_month | pct_class(v.invert_color) }}">{{ p.one_month | fmt_pct }}</td>
                             <td class="perf-val {{ p.one_year | pct_class(v.invert_color) }}">{{ p.one_year | fmt_pct }}</td>
                             <td class="perf-val {{ p.three_years | pct_class(v.invert_color) }}">{{ p.three_years | fmt_pct }}</td>
-                            {% if v.now_value is not none %}
-                            <td class="perf-val" id="live-var-{{ v.symbol }}">
-                                <span title="Daily close (not real-time)">{{ "%.2f"|format(v.now_value) }}{{ v.now_suffix }}</span>
-                                {% if p.one_day is not none %}
-                                <span class="{{ p.one_day | pct_class(v.invert_color) }}" style="font-size:0.8rem; font-weight:bold; margin-left:0.25rem;">({{ p.one_day | fmt_pct }})</span>
+                            {% if is_today %}
+                                {% if v.now_value is not none %}
+                                <td class="perf-val" id="live-var-{{ v.symbol }}">
+                                    <span title="Daily close (not real-time)">{{ "%.2f"|format(v.now_value) }}{{ v.now_suffix }}</span>
+                                    {% if p.one_day is not none %}
+                                    <span class="{{ p.one_day | pct_class(v.invert_color) }}" style="font-size:0.8rem; font-weight:bold; margin-left:0.25rem;">({{ p.one_day | fmt_pct }})</span>
+                                    {% endif %}
+                                </td>
+                                {% else %}
+                                <td class="perf-val" id="live-var-{{ v.symbol }}">—</td>
                                 {% endif %}
-                            </td>
-                            {% else %}
-                            <td class="perf-val" id="live-var-{{ v.symbol }}">—</td>
                             {% endif %}
                         </tr>
                         {% endfor %}
@@ -961,7 +965,7 @@
     const _priceRefs = {};
     for (const c of companiesData) _priceRefs[c.ticker] = { ref: c.price, prefix: '$' };
     for (const b of benchmarksData) _priceRefs[b.symbol] = { ref: b.price, prefix: '' };
-    const _variationTickers = variationsData.filter(v => v.now_value == null).map(v => v.symbol);
+    const _variationTickers = {% if is_today %}variationsData.filter(v => v.now_value == null).map(v => v.symbol){% else %}[]{% endif %};
     const _tickers = Array.from(new Set([...Object.keys(_priceRefs), ..._variationTickers]));
 
     async function fetchLivePrices() {

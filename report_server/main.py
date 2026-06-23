@@ -194,7 +194,11 @@ async def raw_report(request: Request, date_str: str) -> HTMLResponse:
     data = gcs.load_report(date_str)
     if not data or "report" not in data:
         raise HTTPException(status_code=404, detail=f"No report found for {date_str}.")
-    return templates.TemplateResponse(request, "report.html", {"report": data["report"]})
+    is_today = (date_str == datetime.now().date().isoformat())
+    return templates.TemplateResponse(request, "report.html", {
+        "report": data["report"],
+        "is_today": is_today,
+    })
 
 
 @app.get("/{date_str}", response_class=HTMLResponse)
